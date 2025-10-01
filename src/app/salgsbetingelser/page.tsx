@@ -7,7 +7,7 @@ export default function SalgsbetingelserPage() {
 
       <h2>Betaling</h2>
       <p>
-        Min Virksomhed ApS modtager online betalinger med [Indsæt korttyper, f.eks. Dankort, Visa/Dankort, Visa, Mastercard] og MobilePay.
+        DIKU Dunkers modtager online betalinger med [Indsæt korttyper, f.eks. Dankort, Visa/Dankort, Visa, Mastercard] og MobilePay.
         Betaling vil først blive trukket på din konto, når den fysiske vare afsendes eller det virtuelle produkt er oprettet, med mindre andet er aftalt.
       </p>
 
@@ -18,7 +18,7 @@ export default function SalgsbetingelserPage() {
 
       <h2>Returnering</h2>
       <p>
-        Ønske om returnering skal meddeles os senest 14 efter leveringen og være os i hænde seneste 14 dage efter, vi er informeret om dit brug af fortrydelsesretten. Ønske om brug af fortrydelsesret skal sendes på mail kontakt@minvirksomhed.dk.
+        Ønske om returnering skal meddeles os senest 14 efter leveringen og være os i hænde seneste 14 dage efter, vi er informeret om dit brug af fortrydelsesretten. Ønske om brug af fortrydelsesret skal sendes på mail dikudunkers@di.ku.dk.
       </p>
 
       <h2>Klagehåndtering</h2>
