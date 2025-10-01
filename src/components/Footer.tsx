@@ -5,11 +5,11 @@ const Footer = () => {
   return (
     <footer className="bg-gray-100 p-8 text-center text-sm text-gray-600">
       <div className="space-y-2">
-        <p className="font-bold">Min Virksomhed ApS</p>
-        <p>CVR: 12345678</p>
-        <p>Gadevej 123, 8000 Aarhus C</p>
-        <p>Telefon: +45 12 34 56 78</p>
-        <p>Email: kontakt@minvirksomhed.dk</p>
+        <p className="font-bold">DIKU Dunkers</p>
+        <p>CVR: 45518833</p>
+        <p>dikudunkers@di.ku.dk</p>
+        <p>Telefon: +45 31 60 19 22</p>
+        <p>Email: dikudunkers@di.ku.dk</p>
         <div className="pt-4">
           <Link href="/salgsbetingelser" className="underline hover:text-black">
             Læs vores salgsbetingelser
