@@ -1,7 +1,7 @@
 // src/app/subscription-success/SubscriptionSuccessClient.tsx
 'use client'; // <-- Meget vigtigt!
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionSuccessClient() {
