@@ -15,10 +15,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Find all active subscriptions that haven't been charged this month
-    // NOTE: This SQL is illustrative. Your logic will be more complex,
-    // needing to check the last charge date against the current date.
-    const result = await pool.query("SELECT vipps_agreement_id FROM subscriptions WHERE status = 'ACTIVE'");
+    // This query now selects active users who were last charged more than 28 days ago,
+    // or who have never been charged (for their first payment after activation).
+    const query = `
+      SELECT vipps_agreement_id FROM subscriptions 
+      WHERE status = 'ACTIVE' 
+      AND (last_charged_at IS NULL OR last_charged_at <= current_date - interval '28 days')
+    `;
+    const result = await pool.query(query);
     const activeSubscriptions = result.rows;
 
     if (activeSubscriptions.length === 0) {
