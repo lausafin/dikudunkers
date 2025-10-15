@@ -1,9 +1,21 @@
-// components/SubscribeButton.tsx
+// src/components/SubscribeButton.tsx
 'use client';
 
 import { useState } from 'react';
 
-export default function SubscribeButton() {
+// Define a type for the membership details
+type MembershipDetails = {
+  type: 'Haladgang' | 'Kamphold';
+  priceInOre: number;
+  displayName: string; // e.g., "150 DKK / halvår"
+  productName: string; // e.g., "DIKU Dunkers Haladgang"
+};
+
+type SubscribeButtonProps = {
+  membership: MembershipDetails;
+};
+
+export default function SubscribeButton({ membership }: SubscribeButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -11,26 +23,28 @@ export default function SubscribeButton() {
     setIsLoading(true);
     setError(null);
 
-    // Hardcoded for test, i en rigtig app ville du have en input-felt
-    const testPhoneNumber = '4712345678'; // Udskift med dit test-bruger nummer
+    // This should be an input field in a real scenario
+    const testPhoneNumber = '66719702'; 
 
     try {
       const response = await fetch('/api/recurring/create-agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: testPhoneNumber }),
+        body: JSON.stringify({ 
+          phoneNumber: testPhoneNumber,
+          membershipType: membership.type,
+          priceInOre: membership.priceInOre,
+          productName: membership.productName,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to initiate subscription.');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initiate subscription.');
       }
 
       const data = await response.json();
-      
-      // Gem agreementId i sessionStorage, så vi kan tjekke status bagefter
       sessionStorage.setItem('vippsAgreementId', data.agreementId);
-
-      // Redirect brugeren til Vipps
       window.location.href = data.vippsConfirmationUrl;
 
     } catch (err) {
@@ -44,11 +58,11 @@ export default function SubscribeButton() {
       <button
         onClick={handleSubscribe}
         disabled={isLoading}
-        className="bg-blue-600 text-white font-bold py-3 px-6 rounded hover:bg-blue-700 disabled:bg-gray-400"
+        className="bg-blue-600 text-white font-bold py-3 px-6 rounded hover:bg-blue-700 disabled:bg-gray-400 w-full"
       >
-        {isLoading ? 'Omdirigerer...' : 'Tegn Abonnement - 299 DKK/md.'}
+        {isLoading ? 'Omdirigerer...' : `Tilmeld dig ${membership.type}`}
       </button>
-      {error && <p className="text-red-500 mt-2">{error}</p>}
+      {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
     </div>
   );
 }

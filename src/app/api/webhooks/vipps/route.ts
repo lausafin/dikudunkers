@@ -1,35 +1,41 @@
 // src/app/api/webhooks/vipps/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import pool from '@/lib/db';
-import { verifyVippsWebhook } from '@/lib/vipps-security'; // Assuming this is your verification function
+import { verifyVippsWebhook } from '@/lib/vipps-security';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) { // Changed to NextRequest to get pathname
   try {
-    // 1. Get the signature header and the raw body text
-    const signature = request.headers.get('X-Vipps-Signature'); // Or whatever the correct header name is
+    // We need the raw body as a string for verification, so we read it once.
     const rawBody = await request.text();
 
-    // 2. === FIX IS HERE ===
-    // If the signature is missing, it's an unauthorized request. Reject it.
-    if (!signature) {
-      console.warn('Webhook received without a signature.');
-      return new Response('Unauthorized: Missing signature header', { status: 401 });
-    }
+    // The new verification function needs the body, headers, and the request path.
+    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
 
-    // 3. Verify the signature. Now TypeScript knows `signature` is a string.
-    if (!await verifyVippsWebhook(signature, rawBody)) {
-      console.warn('Webhook verification failed.');
+    if (!isVerified) {
       return new Response('Unauthorized: Signature verification failed', { status: 401 });
     }
 
-    // If verification passes, we can safely parse the body and process it
+    // Since verification passed, we can now safely parse the body we already read.
     const payload = JSON.parse(rawBody);
     const { eventType, agreementId, actor } = payload;
+
     let newStatus = '';
+
+    console.log(`Webhook VERIFIED and received: ${eventType} for agreement ${agreementId}`);
 
     switch (eventType) {
       case 'recurring.agreement-activated.v1':
         newStatus = 'ACTIVE';
+        break;
+      case 'recurring.agreement-activated.v1':
+        // An agreement is active, which means the initialCharge was successful.
+        // We set the status and the first charge date.
+        await pool.query(
+          `UPDATE subscriptions 
+           SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP, last_charged_at = current_date 
+           WHERE vipps_agreement_id = $1`,
+          [agreementId]
+        );
         break;
       case 'recurring.agreement-stopped.v1':
         newStatus = 'STOPPED';
@@ -47,11 +53,11 @@ export async function POST(request: Request) {
       );
     }
     
-    return NextResponse.json({ status: 'received' }, { status: 200 });
+    return NextResponse.json({ status: 'received' });
 
   } catch (error) {
-      console.error("Webhook processing error:", error);
-      const message = error instanceof Error ? error.message : 'Webhook processing failed';
-      return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Webhook processing error:", error);
+    const message = error instanceof Error ? error.message : 'Webhook processing failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

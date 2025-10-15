@@ -13,7 +13,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="da">
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning={true}>
         <main className="min-h-screen p-8">{children}</main>
         <Footer />
       </body>

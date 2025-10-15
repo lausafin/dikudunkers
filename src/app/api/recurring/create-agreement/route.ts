@@ -1,30 +1,57 @@
-// app/api/recurring/create-agreement/route.ts
-
+// src/app/api/recurring/create-agreement/route.ts
 import { NextResponse } from 'next/server';
-import { getVippsAccessToken } from '@/lib/vipps'; // Vores hjælpefunktion
+import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
-import pool from '@/lib/db'; // Import the db connection pool
+import pool from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
     const accessToken = await getVippsAccessToken();
-    const { phoneNumber } = await request.json(); // Vi får tlf. nummer fra frontend
-    const userId = 1; // I en rigtig app skal du hente den loggede brugers ID
+    const { 
+      phoneNumber, 
+      membershipType, 
+      priceInOre, 
+      productName 
+    } = await request.json();
+
+    // Basic validation
+    if (!phoneNumber || !membershipType || !priceInOre || !productName) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const userId = 1; // Replace with real authenticated user ID
+
+    // This logic correctly determines the base URL in any environment
+    const getBaseUrl = () => {
+      // Vercel provides this for preview and production deployments
+      if (process.env.VERCEL_URL) return `https://` + process.env.VERCEL_URL;
+      // Fallback for local development
+      return process.env.BASE_URL || 'http://localhost:3000';
+    };
+
+    const baseUrl = getBaseUrl();
 
     const agreementPayload = {
+      // Vipps API uses months for intervals. 6 months = semi-annually.
       interval: {
         unit: "MONTH",
-        count: 1
+        count: 6
       },
+      // === NEW: ADD THE INITIAL CHARGE OBJECT ===
+      initialCharge: {
+         amount: priceInOre,
+         description: `Første betaling for ${productName}`,
+         transactionType: "DIRECT_CAPTURE" // Capture the payment immediately
+      },
+      // ==========================================
       pricing: {
-        amount: 29900, // 299 DKK i øre
-        currency: "DKK" // Eller NOK
+        amount: priceInOre,
+        currency: "DKK"
       },
-      // VIGTIGT: Disse URL'er skal pege på din *live* hjemmeside
-      merchantRedirectUrl: "https://dikudunkers.dk/subscription-success",
-      merchantAgreementUrl: "https://dikudunkers.dk/my-account/subscription",
-      phoneNumber: phoneNumber, // Test-brugerens telefonnummer
-      productName: "Mit Fantastiske Månedsabonnement"
+      merchantRedirectUrl: `${baseUrl}/subscription-success`,
+      merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
+      phoneNumber: phoneNumber,
+      productName: productName
     };
 
     const response = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements`, {
@@ -34,8 +61,7 @@ export async function POST(request: Request) {
         'Authorization': `Bearer ${accessToken}`,
         'Ocp-Apim-Subscription-Key': process.env.VIPPS_RECURRING_SUB_KEY!,
         'Merchant-Serial-Number': process.env.VIPPS_MSN!,
-        'Idempotency-Key': uuidv4(), // Unikt ID for at undgå dobbelt-oprettelse
-        // 'Vipps-System-Name': 'MinNextJsWebshop' // God praksis at inkludere
+        'Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(agreementPayload),
     });
@@ -49,14 +75,13 @@ export async function POST(request: Request) {
     const data = await response.json();
     const { agreementId } = data;
     
-    // Save to your database
+    // Save the specific membership type and price to your database
     await pool.query(
-      'INSERT INTO subscriptions (user_id, vipps_agreement_id, status) VALUES ($1, $2, $3)',
-      [userId, agreementId, 'PENDING']
+      'INSERT INTO subscriptions (user_id, vipps_agreement_id, status, membership_type, price_in_ore) VALUES ($1, $2, $3, $4, $5)',
+      [userId, agreementId, 'PENDING', membershipType, priceInOre]
     );
     
-    // Send vippsConfirmationUrl tilbage til frontend
-    return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
+    return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId });
 
   } catch (error) {
     console.error(error);
