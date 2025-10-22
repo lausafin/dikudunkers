@@ -1,6 +1,6 @@
 // src/app/api/recurring/get-status/route.ts
 import { NextResponse } from 'next/server';
-import { getVippsAccessToken } from '@/lib/vipps';
+import pool from '@/lib/db';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,31 +11,24 @@ export async function GET(request: Request) {
   }
 
   try {
-    const accessToken = await getVippsAccessToken();
-    
-    // === ÆNDRINGEN ER HER: VI KALDER VIPPS API DIREKTE ===
-    const response = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements/${agreementId}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Ocp-Apim-Subscription-Key': process.env.VIPPS_RECURRING_SUB_KEY!,
-        'Merchant-Serial-Number': process.env.VIPPS_MSN!,
-      },
-      // Tilføj cache: 'no-store' for at sikre, at vi altid får den seneste status
-      cache: 'no-store', 
-    });
+    // Spørg VORES EGEN database om status for denne aftale
+    const result = await pool.query(
+      'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
+      [agreementId]
+    );
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch agreement status from Vipps. Status: ${response.status}`);
+    // Hvis webhooken endnu ikke er ankommet, findes rækken ikke (eller er stadig PENDING).
+    // I begge tilfælde skal frontenden vente.
+    if (result.rows.length === 0) {
+      return NextResponse.json({ status: 'PENDING' });
     }
 
-    const data = await response.json();
-    
-    // Vi returnerer status direkte fra Vipps' svar
-    return NextResponse.json({ status: data.status });
-    // =======================================================
+    // Hvis webhooken ER ankommet, returnerer vi den korrekte status fra vores database.
+    const currentStatus = result.rows[0].status;
+    return NextResponse.json({ status: currentStatus });
 
   } catch (error) {
-     console.error("Error fetching real-time agreement status:", error);
+     console.error("Error fetching agreement status from DB:", error);
      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
      return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
