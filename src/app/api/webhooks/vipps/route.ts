@@ -7,10 +7,10 @@ import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    // const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
-    // if (!isVerified) {
-    //   return new Response('Unauthorized: Signature verification failed', { status: 401 });
-    // }
+    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
+    if (!isVerified) {
+      return new Response('Unauthorized: Signature verification failed', { status: 401 });
+    }
 
     const payload = JSON.parse(rawBody);
     const { eventType, agreementId, chargeId, chargeType } = payload; // Få 'chargeType' fra payload
