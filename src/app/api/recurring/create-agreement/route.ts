@@ -2,23 +2,20 @@
 import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
-import pool from '@/lib/db';
+// Vi har ikke længere brug for `pool` her
 
 export async function POST(request: Request) {
   try {
     const accessToken = await getVippsAccessToken();
     const { 
       phoneNumber, 
-      membershipType, 
       priceInOre, 
       productName 
     } = await request.json();
 
-    if (!phoneNumber || !membershipType || !priceInOre || !productName) {
+    if (!phoneNumber || !priceInOre || !productName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-
-    const userId = 1; // Erstat med rigtig bruger-ID fra authentication
 
     const getBaseUrl = () => {
       if (process.env.VERCEL_URL) return `https://` + process.env.VERCEL_URL;
@@ -60,18 +57,11 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    const { agreementId } = data;
     
-    // Opret abonnementet i databasen med 'PENDING' status med det samme.
-    // Dette sikrer, at vores polling-endpoint kan finde aftalen med det samme.
-    await pool.query(
-      `INSERT INTO subscriptions (user_id, vipps_agreement_id, status, membership_type, price_in_ore)
-       VALUES ($1, $2, 'PENDING', $3, $4)
-       ON CONFLICT (vipps_agreement_id) DO NOTHING`,
-      [userId, agreementId, membershipType, priceInOre]
-    );
+    // VI HAR FJERNET DATABASE-KODEN HER.
+    // Webhook'en har nu 100% ansvaret for at oprette data, når aftalen er aktiv.
     
-    return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId });
+    return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
 
   } catch (error) {
     console.error(error);
