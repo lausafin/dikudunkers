@@ -56,24 +56,4 @@ export async function GET(request: Request) {
      console.error("Error in get-status endpoint:", error);
      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-}        'Ocp-Apim-Subscription-Key': process.env.VIPPS_RECURRING_SUB_KEY!,
-        'Merchant-Serial-Number': process.env.VIPPS_MSN!,
-      },
-    });
-
-    if (!vippsResponse.ok) {
-      // Hvis Vipps API'en giver en fejl (f.eks. 404), er aftalen sandsynligvis stadig ved at blive oprettet.
-      // Det er sikkert at antage, at den er PENDING.
-      return NextResponse.json({ status: 'PENDING' });
-    }
-
-    const vippsData = await vippsResponse.json();
-    
-    // Returner den rigtige, real-time status fra Vipps til frontend'en.
-    return NextResponse.json({ status: vippsData.status });
-
-  } catch (error) {
-     console.error("Error in get-status endpoint:", error);
-     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
 }
