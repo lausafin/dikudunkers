@@ -1,7 +1,8 @@
 // src/lib/vipps-userinfo.ts
 import { getVippsAccessToken } from './vipps';
+import { type Pool } from 'pg';
 
-export async function fetchAndSaveMemberData(agreementId: string, pool: any) {
+export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
   console.log(`Starting fulfillment for agreement: ${agreementId}`);
   const accessToken = await getVippsAccessToken();
 
