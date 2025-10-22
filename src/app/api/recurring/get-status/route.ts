@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Trin 1: Tjek vores egen database først for en hurtig respons.
+    // Trin 1: Tjek vores egen database først. Det er hurtigt.
     const dbResult = await pool.query(
       'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
       [agreementId]
@@ -20,14 +20,16 @@ export async function GET(request: Request) {
 
     const localStatus = dbResult.rows[0]?.status;
 
-    // Hvis status allerede er 'ACTIVE' (opdateret af webhook), kan vi stoppe her.
-    if (localStatus && localStatus !== 'PENDING') {
+    // Hvis webhook'en allerede har kørt og sat status til ACTIVE (eller STOPPED),
+    // kan vi returnere med det samme.
+    if (localStatus === 'ACTIVE' || localStatus === 'STOPPED' || localStatus === 'EXPIRED') {
       return NextResponse.json({ status: localStatus });
     }
 
-    // Trin 2: Hvis status er PENDING (eller ukendt), spørg Vipps direkte.
-    // Dette løser race condition, hvor polling er hurtigere end webhook'en.
-    console.log(`Local status is PENDING for ${agreementId}. Polling Vipps directly.`);
+    // Trin 2: Hvis vi er her, er status enten PENDING eller rækken findes ikke.
+    // Spørg Vipps direkte for at få den endelige sandhed. Dette løser vores race condition.
+    console.log(`Local status not final for ${agreementId}. Polling Vipps API directly.`);
+    
     const accessToken = await getVippsAccessToken();
     const vippsResponse = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements/${agreementId}`, {
       headers: {
@@ -38,31 +40,18 @@ export async function GET(request: Request) {
     });
 
     if (!vippsResponse.ok) {
-      // Hvis Vipps ikke kan finde aftalen, er den sandsynligvis stadig ved at blive oprettet.
-      console.error(`Polling Vipps for ${agreementId} failed with status: ${vippsResponse.status}`);
+      // Hvis Vipps API'en giver en fejl (f.eks. 404), er aftalen sandsynligvis stadig ved at blive oprettet.
+      // Det er sikkert at antage, at den er PENDING.
       return NextResponse.json({ status: 'PENDING' });
     }
 
     const vippsData = await vippsResponse.json();
-    const realStatus = vippsData.status;
-
-    // Bonus: Hvis vi opdager, at aftalen er blevet aktiv, kan vi opdatere vores egen database
-    // for at "selv-hele" systemet, i tilfælde af at webhook'en skulle fejle eller blive forsinket.
-    if (realStatus === 'ACTIVE' && localStatus === 'PENDING') {
-      console.log(`Polling detected status change to ACTIVE for ${agreementId}. Updating local DB.`);
-      // Vi opdaterer kun status her. Brugerdata-oprettelsen overlades til webhook'en.
-      await pool.query(
-        "UPDATE subscriptions SET status = 'ACTIVE' WHERE vipps_agreement_id = $1",
-        [agreementId]
-      );
-    }
     
-    // Returner den rigtige, real-time status fra Vipps.
-    return NextResponse.json({ status: realStatus });
+    // Returner den rigtige, real-time status fra Vipps til frontend'en.
+    return NextResponse.json({ status: vippsData.status });
 
   } catch (error) {
      console.error("Error in get-status endpoint:", error);
-     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-     return NextResponse.json({ error: errorMessage }, { status: 500 });
+     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
