@@ -6,7 +6,7 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
   console.log(`Starting fulfillment for agreement: ${agreementId}`);
   const accessToken = await getVippsAccessToken();
 
-  // 1. Hent aftalen for at få 'sub' (subject ID)
+  // 1. Hent aftalen for at få 'sub' (subject ID) og pris
   const agrResponse = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements/${agreementId}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -50,16 +50,24 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
   );
   const memberId = memberResult.rows[0].id;
 
-  // 4. Opdater det eksisterende PENDING abonnement til ACTIVE
+  // 4. BESTEM MEDLEMSTYPE BASERET PÅ PRISEN I AFTALEN
+  let membershipType = 'Ukendt';
+  const priceInOre = agreement.pricing.amount;
+  if (priceInOre === 15000) membershipType = 'Haladgang';
+  if (priceInOre === 35000) membershipType = 'Kamphold';
+
+  // 5. OPRET ABONNEMENTET I DATABASEN (RETTELSEN ER HER)
+  // FØR: Var en UPDATE-kommando, der ikke gjorde noget, fordi rækken ikke eksisterede.
+  // NU: Er en INSERT-kommando, der opretter den manglende række.
   await pool.query(
-    `UPDATE subscriptions 
-     SET 
+    `INSERT INTO subscriptions 
+     (member_id, vipps_agreement_id, status, membership_type, price_in_ore, last_charged_at)
+     VALUES ($1, $2, 'ACTIVE', $3, $4, CURRENT_DATE)
+     ON CONFLICT (vipps_agreement_id) DO UPDATE SET 
        status = 'ACTIVE', 
-       member_id = $1, 
-       last_charged_at = CURRENT_DATE,
-       updated_at = CURRENT_TIMESTAMP
-     WHERE vipps_agreement_id = $2`,
-    [memberId, agreementId]
+       member_id = EXCLUDED.member_id,
+       updated_at = CURRENT_TIMESTAMP`,
+    [memberId, agreementId, membershipType, priceInOre]
   );
 
   console.log(`Fulfillment successful for member ${memberId}, agreement ${agreementId}`);
