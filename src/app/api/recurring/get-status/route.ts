@@ -11,19 +11,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Spørg VORES EGEN database om status for denne aftale
+    // Spørg vores egen database om status for denne aftale.
     const result = await pool.query(
       'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
       [agreementId]
     );
 
-    // Hvis webhooken endnu ikke er ankommet, findes rækken ikke (eller er stadig PENDING).
-    // I begge tilfælde skal frontenden vente.
+    // Hvis rækken endnu ikke er oprettet (meget usandsynligt nu), eller har status PENDING.
     if (result.rows.length === 0) {
       return NextResponse.json({ status: 'PENDING' });
     }
 
-    // Hvis webhooken ER ankommet, returnerer vi den korrekte status fra vores database.
+    // Returner den korrekte status fra vores database.
     const currentStatus = result.rows[0].status;
     return NextResponse.json({ status: currentStatus });
 

@@ -2,49 +2,42 @@
 import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
-// Vi har ikke længere brug for 'pool' her.
+import pool from '@/lib/db';
 
 export async function POST(request: Request) {
-  try { 
+  try {
     const accessToken = await getVippsAccessToken();
-    // 1. Fjern 'scope' fra destructuring
     const { 
       phoneNumber, 
       membershipType, 
       priceInOre, 
-      productName
+      productName 
     } = await request.json();
 
     if (!phoneNumber || !membershipType || !priceInOre || !productName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    
+
+    const userId = 1; // Erstat med rigtig bruger-ID fra authentication
+
     const getBaseUrl = () => {
       if (process.env.VERCEL_URL) return `https://` + process.env.VERCEL_URL;
       return process.env.BASE_URL || 'http://localhost:3000';
     };
-
     const baseUrl = getBaseUrl();
 
     const agreementPayload = {
-      interval: {
-        unit: "MONTH",
-        count: 6
-      },
+      interval: { unit: "MONTH", count: 6 },
       initialCharge: {
          amount: priceInOre,
          description: `Første betaling for ${productName}`,
          transactionType: "DIRECT_CAPTURE"
       },
-      pricing: {
-        amount: priceInOre,
-        currency: "DKK"
-      },
+      pricing: { amount: priceInOre, currency: "DKK" },
       merchantRedirectUrl: `${baseUrl}/subscription-success`,
-      merchantAgreementUrl: `${baseUrl}/my-account/subscription`, // Stadig påkrævet af Vipps
+      merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
       phoneNumber: phoneNumber,
       productName: productName,
-      // 2. Tilføj 'scope' her i payload'et
       scope: "name email phoneNumber address birthDate"
     };
 
@@ -67,13 +60,18 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
+    const { agreementId } = data;
     
-    // 3. FJERN databasekaldet herfra. Det håndteres af webhook'en.
+    // Opret abonnementet i databasen med 'PENDING' status med det samme.
+    // Dette sikrer, at vores polling-endpoint kan finde aftalen med det samme.
+    await pool.query(
+      `INSERT INTO subscriptions (user_id, vipps_agreement_id, status, membership_type, price_in_ore)
+       VALUES ($1, $2, 'PENDING', $3, $4)
+       ON CONFLICT (vipps_agreement_id) DO NOTHING`,
+      [userId, agreementId, membershipType, priceInOre]
+    );
     
-    return NextResponse.json({ 
-      vippsConfirmationUrl: data.vippsConfirmationUrl, 
-      agreementId: data.agreementId 
-    });
+    return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId });
 
   } catch (error) {
     console.error(error);

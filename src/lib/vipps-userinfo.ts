@@ -1,8 +1,7 @@
 // src/lib/vipps-userinfo.ts
 import { getVippsAccessToken } from './vipps';
-import { type Pool } from 'pg';
 
-export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
+export async function fetchAndSaveMemberData(agreementId: string, pool: any) {
   console.log(`Starting fulfillment for agreement: ${agreementId}`);
   const accessToken = await getVippsAccessToken();
 
@@ -19,10 +18,10 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
   const agreement = await agrResponse.json();
   
   if (!agreement.sub) {
-    throw new Error(`No 'sub' found in agreement ${agreementId}. Did the user consent to profile sharing?`);
+    throw new Error(`No 'sub' found in agreement ${agreementId}. User might not have consented to profile sharing.`);
   }
 
-  // 2. Brug 'sub' til at hente personlige oplysninger fra Userinfo API
+  // 2. Brug 'sub' til at hente personlige oplysninger
   const userInfoResponse = await fetch(`${process.env.VIPPS_API_BASE_URL}/vipps-userinfo-api/userinfo/${agreement.sub}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
@@ -30,8 +29,7 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
   if (!userInfoResponse.ok) throw new Error(`Failed to fetch userinfo for sub ${agreement.sub}`);
   const userInfo = await userInfoResponse.json();
 
-  // 3. Gem medlemmet i databasen (UPSERT - opret hvis ny, opdater hvis eksisterende)
-  // Vi bruger vipps_sub som unik nøgle.
+  // 3. Opret/opdater medlem i databasen
   const memberResult = await pool.query(
     `INSERT INTO members (vipps_sub, name, email, phone_number, birth_date, address_line1, address_line2, country)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -43,32 +41,24 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
       userInfo.name,
       userInfo.email,
       userInfo.phone_number,
-      userInfo.birthdate, // Bemærk: Vipps sender ofte birthdate som YYYY-MM-DD
+      userInfo.birthdate,
       userInfo.address?.street_address,
-      `${userInfo.address?.postal_code} ${userInfo.address?.region}`,
+      `${userInfo.address?.postal_code || ''} ${userInfo.address?.region || ''}`.trim(),
       userInfo.address?.country
     ]
   );
   const memberId = memberResult.rows[0].id;
 
-  // 4. Opret abonnementet linket til medlemmet
-  // Vi skal bruge membership_type og price fra et sted. 
-  // I en simpel løsning kan vi udlede det fra aftalens productName eller pricing,
-  // eller gemme det midlertidigt i en 'drafts' tabel.
-  // For nu antager vi, at vi kan udlede det fra productName eller at vi gemmer det ved oprettelse.
-  // En robust løsning: Gem membership_type i 'drafts' tabel ved oprettelse og slå op her.
-  // SIMPEL LØSNING HER: Vi gætter baseret på pris fra Vipps-aftalen.
-  
-  let membershipType = 'Ukendt';
-  if (agreement.pricing.amount === 15000) membershipType = 'Haladgang';
-  if (agreement.pricing.amount === 35000) membershipType = 'Kamphold';
-
+  // 4. Opdater det eksisterende PENDING abonnement til ACTIVE
   await pool.query(
-    `INSERT INTO subscriptions 
-     (member_id, vipps_agreement_id, status, membership_type, price_in_ore, last_charged_at)
-     VALUES ($1, $2, 'ACTIVE', $3, $4, CURRENT_DATE)
-     ON CONFLICT (vipps_agreement_id) DO UPDATE SET status = 'ACTIVE'`,
-    [memberId, agreementId, membershipType, agreement.pricing.amount]
+    `UPDATE subscriptions 
+     SET 
+       status = 'ACTIVE', 
+       member_id = $1, 
+       last_charged_at = CURRENT_DATE,
+       updated_at = CURRENT_TIMESTAMP
+     WHERE vipps_agreement_id = $2`,
+    [memberId, agreementId]
   );
 
   console.log(`Fulfillment successful for member ${memberId}, agreement ${agreementId}`);
