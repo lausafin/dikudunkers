@@ -8,10 +8,10 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     // Remember to enable verification in production!
-    // const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
-    // if (!isVerified) {
-    //   return new Response('Unauthorized', { status: 401 });
-    // }
+    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
+    if (!isVerified) {
+      return new Response('Unauthorized', { status: 401 });
+    }
 
     // 1. Destructure 'amount' directly from the payload to fix the ReferenceError.
     const payload = JSON.parse(rawBody);
