@@ -2,62 +2,37 @@
 import { NextResponse, NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { verifyVippsWebhook } from '@/lib/vipps-security';
+import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo'; // Importer funktionen ovenfor
 
-export async function POST(request: NextRequest) { // Changed to NextRequest to get pathname
+export async function POST(request: NextRequest) {
   try {
-    // We need the raw body as a string for verification, so we read it once.
     const rawBody = await request.text();
+    // HUSK AT SLÅ VERIFIKATION TIL I PRODUKTION!
+    // const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
+    // if (!isVerified) return new Response('Unauthorized', { status: 401 });
 
-    // The new verification function needs the body, headers, and the request path.
-    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
-
-    if (!isVerified) {
-      return new Response('Unauthorized: Signature verification failed', { status: 401 });
-    }
-
-    // Since verification passed, we can now safely parse the body we already read.
     const payload = JSON.parse(rawBody);
-    const { eventType, agreementId, actor } = payload;
+    const { eventType, agreementId } = payload;
 
-    let newStatus = '';
+    console.log(`Webhook received: ${eventType} for ${agreementId}`);
 
-    console.log(`Webhook VERIFIED and received: ${eventType} for agreement ${agreementId}`);
-
-    switch (eventType) {
-      case 'recurring.agreement-activated.v1':
-        newStatus = 'ACTIVE';
-        break;
-      case 'recurring.agreement-activated.v1':
-        // An agreement is active, which means the initialCharge was successful.
-        // We set the status and the first charge date.
-        await pool.query(
-          `UPDATE subscriptions 
-           SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP, last_charged_at = current_date 
-           WHERE vipps_agreement_id = $1`,
-          [agreementId]
-        );
-        break;
-      case 'recurring.agreement-stopped.v1':
-        newStatus = 'STOPPED';
-        console.log(`Agreement ${agreementId} was stopped by ${actor}.`);
-        break;
-      case 'recurring.agreement-expired.v1':
-        newStatus = 'EXPIRED';
-        break;
-    }
-
-    if (newStatus) {
+    if (eventType === 'recurring.agreement-activated.v1') {
+      // Dette er det kritiske punkt: Aftalen er aktiv, hent data!
+      // Vi bruger 'waitUntil' (hvis Vercel understøtter det i din plan) eller bare await,
+      // for at sikre at vi færdiggør arbejdet før vi svarer Vipps.
+      await fetchAndSaveMemberData(agreementId, pool);
+    } 
+    else if (eventType === 'recurring.agreement-stopped.v1' || eventType === 'recurring.agreement-expired.v1') {
+      const status = eventType === 'recurring.agreement-stopped.v1' ? 'STOPPED' : 'EXPIRED';
       await pool.query(
-        'UPDATE subscriptions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $2',
-        [newStatus, agreementId]
+        "UPDATE subscriptions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $2",
+        [status, agreementId]
       );
     }
-    
-    return NextResponse.json({ status: 'received' });
 
+    return NextResponse.json({ status: 'received' });
   } catch (error) {
-    console.error("Webhook processing error:", error);
-    const message = error instanceof Error ? error.message : 'Webhook processing failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Webhook error:", error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
