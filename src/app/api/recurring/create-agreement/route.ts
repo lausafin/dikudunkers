@@ -61,14 +61,18 @@ export async function POST(request: Request) {
     const data = await response.json();
     const { agreementId } = data;
 
-    // === CRITICAL ADDITION: SAVE PENDING STATE ===
+    // === DIAGNOSTIC LOGGING ADDED HERE ===
+    console.log(`[DIAGNOSTIC] Attempting to insert PENDING record for agreementId: ${agreementId}`);
+    
     await pool.query(
       `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore)
        VALUES ($1, 'PENDING', $2, $3)
-       ON CONFLICT (vipps_agreement_id) DO NOTHING`, // Avoids error if user retries
+       ON CONFLICT (vipps_agreement_id) DO NOTHING`,
       [agreementId, membershipType, priceInOre]
     );
-    // ============================================
+
+    console.log(`[DIAGNOSTIC] Successfully inserted PENDING record for agreementId: ${agreementId}`);
+    // =====================================
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
 
