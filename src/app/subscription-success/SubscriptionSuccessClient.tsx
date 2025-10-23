@@ -2,11 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionSuccessClient() {
   const [status, setStatus] = useState<'LOADING' | 'PENDING' | 'ACTIVE' | 'FAILED'>('LOADING');
-  const searchParams = useSearchParams();
   
   useEffect(() => {
     const agreementId = sessionStorage.getItem('vippsAgreementId');
@@ -14,6 +12,7 @@ export default function SubscriptionSuccessClient() {
       setStatus('FAILED');
       return;
     }
+
 
     const pollStatus = async () => {
       try {
@@ -56,7 +55,6 @@ export default function SubscriptionSuccessClient() {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. FORBEDRET BRUGERFEEDBACK:
