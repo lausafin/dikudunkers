@@ -1,3 +1,5 @@
+// src/components/SubscribeButton.tsx
+
 // Denne kommentar instruerer ESLint om at ignorere "fejlen" på den næste linje.
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../lib/types/vipps.d.ts" />
@@ -6,7 +8,6 @@
 
 import { useState } from 'react';
 
-// Typerne forbliver de samme
 type MembershipDetails = {
   type: 'Haladgang' | 'Kamphold';
   priceInOre: number;
@@ -15,7 +16,6 @@ type MembershipDetails = {
 };
 
 type SubscribeButtonProps = {
-  // RETTELSEN ER HER: "Membership-Details" er ændret til "MembershipDetails"
   membership: MembershipDetails;
 };
 
