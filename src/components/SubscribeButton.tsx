@@ -1,4 +1,7 @@
-// src/components/SubscribeButton.tsx
+// Denne kommentar instruerer ESLint om at ignorere "fejlen" på den næste linje.
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="../lib/types/vipps.d.ts" />
+
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +15,7 @@ type MembershipDetails = {
 };
 
 type SubscribeButtonProps = {
-  membership: MembershipDetails;
+  membership: Membership-Details;
 };
 
 export default function SubscribeButton({ membership }: SubscribeButtonProps) {
@@ -24,12 +27,10 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
     setError(null);
 
     try {
-      // Vi sender ikke længere telefonnummer med fra frontend.
       const response = await fetch('/api/recurring/create-agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          // Fjern phoneNumber herfra
           membershipType: membership.type,
           priceInOre: membership.priceInOre,
           productName: membership.productName,
@@ -43,7 +44,6 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
       const data = await response.json();
       sessionStorage.setItem('vippsAgreementId', data.agreementId);
-      // Omdirigerer brugeren til den generiske landingsside, hvor de selv indtaster nummer.
       window.location.href = data.vippsConfirmationUrl;
 
     } catch (err) {
@@ -54,8 +54,6 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
   return (
     <div>
-      {/* Vi wrapper knappen i en div med onClick for at sikre event-håndtering.
-          Knappen aktiveres kun, hvis den ikke allerede loader. */}
       <div onClick={!isLoading ? handleSubscribe : undefined}>
         <vipps-mobilepay-button
           brand="mobilepay"
