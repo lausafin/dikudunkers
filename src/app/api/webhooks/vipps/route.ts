@@ -41,12 +41,23 @@ export async function POST(request: NextRequest) {
         await fetchAndSaveMemberData(agreementId, pool);
         break;
 
+      // --- CORRECTED LOGIC FOR 'stopped' ---
       case 'recurring.agreement-stopped.v1':
-      case 'recurring.agreement-expired.v1':
-        const status = eventType === 'recurring.agreement-stopped.v1' ? 'STOPPED' : 'EXPIRED';
+        console.log(`Agreement ${agreementId} was stopped. Marking as STOPPED in DB.`);
         await pool.query(
-          "UPDATE subscriptions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $2",
-          [status, agreementId]
+          // This query updates the status to 'STOPPED' regardless of its previous state (e.g., ACTIVE or PENDING).
+          "UPDATE subscriptions SET status = 'STOPPED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
+          [agreementId]
+        );
+        break;
+      
+      // --- CORRECT LOGIC FOR 'expired' (your original logic was perfect for this) ---
+      case 'recurring.agreement-expired.v1':
+        console.log(`Agreement ${agreementId} expired. Marking as EXPIRED in DB.`);
+        await pool.query(
+          // This query ONLY affects abandoned PENDING agreements.
+          "UPDATE subscriptions SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1 AND status = 'PENDING'",
+          [agreementId]
         );
         break;
 
