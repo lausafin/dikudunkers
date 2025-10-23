@@ -1,18 +1,15 @@
 // src/components/SubscribeButton.tsx
-
 'use client';
 
 import React, { useState } from 'react';
 
-// Custom element typings are declared in src/types/global.d.ts to avoid duplicate declarations
-
+// ... (Dine type-definitioner er uændrede)
 type MembershipDetails = {
   type: 'Haladgang' | 'Kamphold';
   priceInOre: number;
   displayName: string;
   productName: string;
 };
-
 type SubscribeButtonProps = {
   membership: MembershipDetails;
 };
@@ -24,6 +21,15 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
   const handleSubscribe = async () => {
     setIsLoading(true);
     setError(null);
+
+    // ==========================================================
+    // == DEN NYE LOGIK ER HER ==
+    // ==========================================================
+    // Send en "fire-and-forget" anmodning for at vække API'en.
+    // Vi bruger IKKE 'await', fordi vi er ligeglade med svaret.
+    // Brugeren skal omdirigeres med det samme, uanset hvad.
+    fetch('/api/warmup');
+    // ==========================================================
 
     try {
       const response = await fetch('/api/recurring/create-agreement', {
@@ -47,7 +53,7 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred.');
-      setIsLoading(false);
+      setIsLoading(false); // Sørg for at stoppe loading ved fejl
     }
   };
 

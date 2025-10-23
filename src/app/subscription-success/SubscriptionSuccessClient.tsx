@@ -1,89 +1,95 @@
 // src/app/subscription-success/SubscriptionSuccessClient.tsx
-'use client'; // <-- Meget vigtigt!
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionSuccessClient() {
-  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'PENDING' | 'FAILED'>('LOADING');
-  
-  // Vipps kan tilføje query params, dem kan vi logge
+  const [status, setStatus] = useState<'LOADING' | 'PENDING' | 'ACTIVE' | 'FAILED'>('LOADING');
   const searchParams = useSearchParams();
   
   useEffect(() => {
-    console.log('Redirect params from Vipps:', Object.fromEntries(searchParams.entries()));
-
     const agreementId = sessionStorage.getItem('vippsAgreementId');
     if (!agreementId) {
       setStatus('FAILED');
       return;
     }
 
-    // Polling-funktion til at tjekke status
     const pollStatus = async () => {
       try {
         const response = await fetch(`/api/recurring/get-status?agreementId=${agreementId}`);
         const data = await response.json();
 
-        if (data.status === 'ACTIVE') {
-          setStatus('ACTIVE');
-          clearInterval(intervalId); // Stop polling
-          sessionStorage.removeItem('vippsAgreementId');
-        } else if (data.status === 'STOPPED' || data.status === 'EXPIRED') {
-          setStatus('FAILED');
+        // Når status er endelig, stopper vi.
+        if (data.status === 'ACTIVE' || data.status === 'STOPPED' || data.status === 'EXPIRED') {
+          setStatus(data.status === 'ACTIVE' ? 'ACTIVE' : 'FAILED');
           clearInterval(intervalId);
+          clearTimeout(timeoutId); // Ryd også timeouten
           sessionStorage.removeItem('vippsAgreementId');
         } else {
-          setStatus('PENDING'); // Stadig PENDING, fortsæt polling
+          // Ellers er den stadig PENDING
+          setStatus('PENDING');
         }
       } catch (error) {
         console.error("Polling failed:", error);
         setStatus('FAILED');
         clearInterval(intervalId);
+        clearTimeout(timeoutId);
       }
     };
 
-    // Start polling med det samme
+    // Start polling med det samme, og derefter hvert 3. sekund.
     pollStatus();
     const intervalId = setInterval(pollStatus, 3000);
     
-    // Sæt en timeout på 30 sekunder
+    // 1. FORØGET TIMEOUT: Vi giver backend'en op til 90 sekunder (op fra 30).
+    // Dette er rigelig tid til at håndtere selv de langsomste cold starts.
     const timeoutId = setTimeout(() => {
       clearInterval(intervalId);
-      // Kun opdater til FAILED hvis den stadig venter
       setStatus(currentStatus => 
         currentStatus === 'PENDING' || currentStatus === 'LOADING' ? 'FAILED' : currentStatus
       );
-    }, 30000);
+    }, 90000); // 90 sekunder
 
-    // Ryd op når component unmounts
+    // Ryd op, når komponenten forsvinder (f.eks. hvis brugeren navigerer væk).
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-    // Denne hook skal kun køre én gang ved mount for at starte polling-processen.
-    // Vi logger searchParams, men den ændrer sig ikke efter mount, så vi kan ignorere ESLint her.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // UI baseret på status
-  if (status === 'LOADING') return <p>Bekræfter abonnement, vent venligst...</p>;
-  if (status === 'PENDING') return <p>Behandler stadig... Et øjeblik.</p>;
-
-  if (status === 'ACTIVE') {
+  // 2. FORBEDRET BRUGERFEEDBACK:
+  // Vi giver brugeren en mere informativ besked, mens de venter.
+  if (status === 'LOADING') {
+    return <p>Forbinder og verificerer din betaling...</p>;
+  }
+  
+  if (status === 'PENDING') {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-green-600">Abonnement Aktivt!</h1>
-        <p>Tak! Du er nu tilmeldt. Du kan se og administrere din aftale i din MobilePay-app.</p>
+        <h1 className="text-2xl font-bold">Bekræftelse modtaget!</h1>
+        <p className="mt-2">Vi er ved at oprette dit medlemskab. Dette kan tage op til et minut.</p>
+        <p>Du kan roligt lukke dette vindue, hvis du ønsker det - vi har modtaget din betaling.</p>
       </div>
     );
   }
 
+  if (status === 'ACTIVE') {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
+        <p>Dit medlemskab er nu aktivt. Vi har sendt en bekræftelse til din e-mail.</p>
+      </div>
+    );
+  }
+
+  // Gælder for FAILED, STOPPED, EXPIRED
   if (status === 'FAILED') {
     return (
       <div>
         <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
-        <p>Vi kunne desværre ikke aktivere dit abonnement. Prøv venligst igen.</p>
+        <p>Vi kunne desværre ikke aktivere dit abonnement. Prøv venligst igen, eller kontakt os, hvis problemet fortsætter.</p>
       </div>
     );
   }
