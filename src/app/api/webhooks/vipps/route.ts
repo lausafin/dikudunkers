@@ -7,8 +7,6 @@ import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    
-    // HUSK AT FJERNE KOMMENTERING I PRODUKTION!
     const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
     if (!isVerified) {
       console.warn('Webhook verification failed!');
