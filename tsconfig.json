@@ -22,6 +22,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/subscription-success/SubscriptionSuccessClient.tsx"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts", // DENNE LINJE ER LØSNINGEN
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

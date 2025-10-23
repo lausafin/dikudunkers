@@ -5,11 +5,11 @@ declare namespace JSX {
       brand?: 'vipps' | 'mobilepay';
       language?: 'en' | 'no' | 'fi' | 'dk' | 'sv';
       variant?: 'primary' | 'dark' | 'light';
-      rounded?: string; // 'true' or 'false'
+      rounded?: string;
       verb?: 'buy' | 'pay' | 'login' | 'register' | 'continue' | 'confirm' | 'donate';
-      stretched?: string; // 'true' or 'false'
-      branded?: string; // 'true' or 'false'
-      loading?: string; // 'true' or 'false'
+      stretched?: string;
+      branded?: string;
+      loading?: string;
     }, HTMLElement>;
   }
 }
