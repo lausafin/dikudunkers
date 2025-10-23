@@ -70,6 +70,8 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
     await client.query('COMMIT');
     console.log(`[SUCCESS] Transaction committed for agreement ${agreementId}.`);
 
+    return memberId;
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(`[CRITICAL ERROR] Transaction rolled back for agreement ${agreementId}.`, error);

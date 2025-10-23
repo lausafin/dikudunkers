@@ -6,17 +6,14 @@ import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
 
 export async function POST(request: NextRequest) {
   try {
-    // RETTELSE 1: Læs body som tekst én gang.
     const rawBody = await request.text();
-
+    
     // HUSK AT FJERNE KOMMENTERING I PRODUKTION!
     const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
     if (!isVerified) {
       console.warn('Webhook verification failed!');
       return new Response('Unauthorized: Signature verification failed', { status: 401 });
     }
-
-    // RETTELSE 1 (fortsat): Parse den rå tekst i stedet for at kalde request.json().
     const payload = JSON.parse(rawBody);
     const { eventType, agreementId, chargeId, chargeType, amount } = payload;
 
@@ -28,20 +25,17 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'recurring.agreement-stopped.v1':
-        await pool.query(
-          "UPDATE subscriptions SET status = 'STOPPED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
-          [agreementId]
-        );
-        break;
-
       case 'recurring.agreement-expired.v1':
+        const status = eventType === 'recurring.agreement-stopped.v1' ? 'STOPPED' : 'EXPIRED';
+        // KRITISK RETTELSE: Brugt $2 for agreementId for at matche den anden parameter.
         await pool.query(
-          "UPDATE subscriptions SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
-          [agreementId]
+          "UPDATE subscriptions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $2",
+          [status, agreementId]
         );
         break;
 
       case 'recurring.charge-captured.v1':
+        // Denne logik er allerede robust og håndterer race conditions.
         const subResult = await pool.query(
           'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
           [agreementId]
@@ -49,7 +43,6 @@ export async function POST(request: NextRequest) {
         
         if (subResult.rows.length > 0) {
           const subscriptionId = subResult.rows[0].id;
-
           await pool.query(
             `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
              VALUES ($1, $2, 'CAPTURED', $3, $4)
@@ -58,11 +51,24 @@ export async function POST(request: NextRequest) {
           );
           console.log(`Charge ${chargeId} (${chargeType}) was captured and saved to DB.`);
         } else {
-          console.warn(`Received a charge for an unknown agreementId: ${agreementId}`);
+          console.warn(`Race condition: Charge arrived before agreement for ${agreementId}. Triggering fulfillment...`);
+          await fetchAndSaveMemberData(agreementId, pool);
+          const secondSubResult = await pool.query('SELECT id FROM subscriptions WHERE vipps_agreement_id = $1', [agreementId]);
+          if (secondSubResult.rows.length > 0) {
+            const newSubscriptionId = secondSubResult.rows[0].id;
+            await pool.query(
+              `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
+               VALUES ($1, $2, 'CAPTURED', $3, $4) ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED'`,
+              [newSubscriptionId, chargeId, amount, chargeType]
+            );
+            console.log(`Charge ${chargeId} was captured and saved to DB after fulfillment.`);
+          } else {
+            console.error(`CRITICAL: Could not find or create subscription for agreementId: ${agreementId}`);
+          }
         }
         break;
       
-      // RETTELSE 2: Tilføj en default case for uventede events.
+      // FORBEDRING: Tilføjet default case for at fange uventede events.
       default:
         console.warn(`Unhandled webhook eventType received: ${eventType}`);
         break;
