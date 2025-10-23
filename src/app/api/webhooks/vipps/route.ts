@@ -6,8 +6,8 @@ import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
 
 export async function POST(request: NextRequest) {
   // INTENTIONALLY THROW AN ERROR TO SIMULATE A FAILURE
-  throw new Error("SIMULATED WEBHOOK FAILURE FOR TESTING!");
-  
+  // throw new Error("SIMULATED WEBHOOK FAILURE FOR TESTING!");
+
   try {
     const rawBody = await request.text();
     const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
