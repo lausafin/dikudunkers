@@ -15,7 +15,8 @@ type MembershipDetails = {
 };
 
 type SubscribeButtonProps = {
-  membership: Membership-Details;
+  // RETTELSEN ER HER: "Membership-Details" er ændret til "MembershipDetails"
+  membership: MembershipDetails;
 };
 
 export default function SubscribeButton({ membership }: SubscribeButtonProps) {
