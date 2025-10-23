@@ -51,21 +51,31 @@ export async function fetchAndSaveMemberData(agreementId: string, pool: Pool) {
     const memberId = memberResult.rows[0]?.id;
     if (!memberId) throw new Error("Failed to get memberId after upsert.");
     console.log(`[DIAGNOSTIC]    ... Member upserted successfully. memberId: ${memberId}`);
-
-    let membershipType = 'Ukendt';
-    const priceInOre = agreement.pricing.amount;
-    if (priceInOre === 15000) membershipType = 'Haladgang';
-    if (priceInOre === 35000) membershipType = 'Kamphold';
-    console.log(`[DIAGNOSTIC] 5. Determined membership type: ${membershipType} for price: ${priceInOre}`);
     
-    console.log(`[DIAGNOSTIC] 6. Inserting into 'subscriptions' with memberId: ${memberId} and agreementId: ${agreementId}...`);
-    await client.query(
-      `INSERT INTO subscriptions (member_id, vipps_agreement_id, status, membership_type, price_in_ore, last_charged_at)
-       VALUES ($1, $2, 'ACTIVE', $3, $4, CURRENT_DATE)
-       ON CONFLICT (vipps_agreement_id) DO UPDATE SET status = 'ACTIVE', member_id = EXCLUDED.member_id, updated_at = CURRENT_TIMESTAMP`,
-      [memberId, agreementId, membershipType, priceInOre]
+    // REMOVED the old logic that guessed the membership type based on price.
+
+    // THIS IS THE ONLY LOGIC THAT SHOULD BE HERE.
+    console.log(`[DIAGNOSTIC] 5. Fetching subscription details from DB for agreementId: ${agreementId}...`);
+    const subDetailsResult = await client.query(
+      'SELECT membership_type FROM subscriptions WHERE vipps_agreement_id = $1',
+      [agreementId]
     );
-    console.log('[DIAGNOSTIC]    ... Subscription inserted successfully.');
+    if (subDetailsResult.rows.length === 0) {
+      throw new Error(`Subscription record not found for agreement ${agreementId} during fulfillment.`);
+    }
+    console.log(`[DIAGNOSTIC]    ... Fetched membership type from DB: ${subDetailsResult.rows[0].membership_type}`);
+    
+    console.log(`[DIAGNOSTIC] 6. Updating 'subscriptions' record for agreementId: ${agreementId}...`);
+    await client.query(
+      `UPDATE subscriptions 
+       SET status = 'ACTIVE', 
+           member_id = $1, 
+           last_charged_at = CURRENT_DATE, 
+           updated_at = CURRENT_TIMESTAMP
+       WHERE vipps_agreement_id = $2`,
+      [memberId, agreementId]
+    );
+    console.log('[DIAGNOSTIC]    ... Subscription updated successfully.');
 
     await client.query('COMMIT');
     console.log(`[SUCCESS] Transaction committed for agreement ${agreementId}.`);

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
+import pool from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -58,6 +59,16 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
+    const { agreementId } = data;
+
+    // === CRITICAL ADDITION: SAVE PENDING STATE ===
+    await pool.query(
+      `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore)
+       VALUES ($1, 'PENDING', $2, $3)
+       ON CONFLICT (vipps_agreement_id) DO NOTHING`, // Avoids error if user retries
+      [agreementId, membershipType, priceInOre]
+    );
+    // ============================================
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
 
