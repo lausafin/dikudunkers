@@ -22,11 +22,13 @@
       "@/*": ["./src/*"]
     }
   },
+  "files": [
+    "src/lib/types/vipps.d.ts"
+  ],
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.d.ts", // DENNE LINJE ER LØSNINGEN
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
