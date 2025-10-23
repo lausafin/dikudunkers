@@ -1,12 +1,10 @@
 // src/components/SubscribeButton.tsx
 
-// Denne kommentar instruerer ESLint om at ignorere "fejlen" på den næste linje.
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="../lib/types/vipps.d.ts" />
-
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+
+// Custom element typings are declared in src/types/global.d.ts to avoid duplicate declarations
 
 type MembershipDetails = {
   type: 'Haladgang' | 'Kamphold';
@@ -56,16 +54,16 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
   return (
     <div>
       <div onClick={!isLoading ? handleSubscribe : undefined}>
-        <vipps-mobilepay-button
-          brand="mobilepay"
-          variant="primary"
-          language="dk"
-          verb="continue"
-          branded="true"
-          rounded="true"
-          stretched="true"
-          loading={isLoading.toString()}
-        ></vipps-mobilepay-button>
+        {React.createElement('vipps-mobilepay-button', {
+          brand: 'mobilepay',
+          variant: 'primary',
+          language: 'dk',
+          verb: 'continue',
+          branded: 'true',
+          rounded: 'true',
+          stretched: 'true',
+          loading: isLoading.toString(),
+        })}
       </div>
       {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
     </div>

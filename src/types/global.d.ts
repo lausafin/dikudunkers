@@ -1,4 +1,4 @@
-// src/lib/types/vipps.d.ts
+// src/types/global.d.ts
 declare namespace JSX {
   interface IntrinsicElements {
     'vipps-mobilepay-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
