@@ -1,4 +1,9 @@
-// src/lib/types/vipps.d.ts
+/// <reference path="../lib/types/vipps.d.ts" />
+
+'use client';
+
+import { useState } from 'react';
+
 declare namespace JSX {
   interface IntrinsicElements {
     'vipps-mobilepay-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
