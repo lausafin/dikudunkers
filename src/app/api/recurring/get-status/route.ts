@@ -1,10 +1,8 @@
 // src/app/api/recurring/get-status/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { getVippsAccessToken } from '@/lib/vipps';
 
-// DENNE LINJE ER LØSNINGEN:
-// Fortæller Vercel/Next.js, at denne route er fuldt dynamisk og aldrig må caches.
+// This is still important to prevent aggressive caching.
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
@@ -16,44 +14,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Trin 1: Tjek vores egen database først. Det er hurtigt.
     const dbResult = await pool.query(
       'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
       [agreementId]
     );
 
-    const localStatus = dbResult.rows[0]?.status;
+    // If the webhook hasn't created the row yet, or it's still pending,
+    // gracefully return 'PENDING'.
+    const status = dbResult.rows[0]?.status || 'PENDING';
 
-    // Hvis webhook'en allerede har kørt, er vi færdige.
-    if (localStatus === 'ACTIVE' || localStatus === 'STOPPED' || localStatus === 'EXPIRED') {
-      return NextResponse.json({ status: localStatus });
-    }
-
-    // Trin 2: Hvis vi er her, er status enten PENDING eller rækken findes ikke.
-    // Spørg Vipps direkte for at få den endelige sandhed.
-    console.log(`Local status not final for ${agreementId}. Polling Vipps API directly.`);
-    
-    const accessToken = await getVippsAccessToken();
-    const vippsResponse = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements/${agreementId}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Ocp-Apim-Subscription-Key': process.env.VIPPS_RECURRING_SUB_KEY!,
-        'Merchant-Serial-Number': process.env.VIPPS_MSN!,
-      },
-      // Tilføj denne cache-option for at sikre, at selv fetch-kaldet ikke caches
-      cache: 'no-store',
-    });
-
-    if (!vippsResponse.ok) {
-      return NextResponse.json({ status: 'PENDING' });
-    }
-
-    const vippsData = await vippsResponse.json();
-    
-    return NextResponse.json({ status: vippsData.status });
+    return NextResponse.json({ status });
 
   } catch (error) {
-     console.error("Error in get-status endpoint:", error);
-     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    // If the database has a transient error, DO NOT fail the request.
+    // Instead, tell the frontend to just keep trying. The webhook will eventually succeed.
+    console.warn(`Transient error in get-status for ${agreementId}. Returning PENDING.`, error);
+    return NextResponse.json({ status: 'PENDING' });
   }
 }
