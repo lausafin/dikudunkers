@@ -13,59 +13,72 @@ export default function SubscriptionSuccessClient() {
       return;
     }
 
-    // This function will poll our backend for the true status of the agreement.
+    let consecutiveFailedPolls = 0; // Track consecutive failures
+
     const pollStatus = async () => {
       try {
         const response = await fetch(`/api/recurring/get-status?agreementId=${agreementId}`);
         const data = await response.json();
 
-        // If the webhook has already updated the status, we're done!
+        // If we get a valid response, reset the failure counter
+        consecutiveFailedPolls = 0;
+
         if (data.status === 'ACTIVE') {
           setStatus('ACTIVE');
           clearInterval(intervalId);
+          clearTimeout(timeoutId); // Clean up timeout as well
           sessionStorage.removeItem('vippsAgreementId');
         } else if (data.status === 'STOPPED' || data.status === 'EXPIRED') {
           setStatus('FAILED');
           clearInterval(intervalId);
+          clearTimeout(timeoutId);
           sessionStorage.removeItem('vippsAgreementId');
         } else {
-          // It's still PENDING, so we keep the UI in a pending state and wait.
+          // It's still PENDING, we keep waiting.
           setStatus('PENDING');
         }
       } catch (error) {
-        console.error("Polling failed:", error);
-        setStatus('FAILED');
-        clearInterval(intervalId);
+        console.warn("A poll request failed. Retrying...", error);
+        consecutiveFailedPolls++;
+
+        // If we fail 3 times in a row, then we give up.
+        if (consecutiveFailedPolls > 3) {
+          console.error("Polling failed multiple times. Setting status to FAILED.");
+          setStatus('FAILED');
+          clearInterval(intervalId);
+          clearTimeout(timeoutId);
+        }
       }
     };
 
-    // Start polling immediately, then every 3 seconds, for up to 30 seconds.
+    // Start polling immediately, then every 3 seconds.
     pollStatus();
     const intervalId = setInterval(pollStatus, 3000);
+
+    // The optimistic timeout: If after 30 seconds we are still pending,
+    // assume success for the user's sake. The webhook is the source of truth for the backend.
     const timeoutId = setTimeout(() => {
       clearInterval(intervalId);
-      // If still loading or pending after 30s, show a generic success message.
-      // The webhook will handle the backend, but we don't want the user to wait forever.
       setStatus(currentStatus => 
         currentStatus === 'PENDING' || currentStatus === 'LOADING' ? 'ACTIVE' : currentStatus
       );
     }, 30000);
 
+    // Cleanup function to stop polling if the component unmounts
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, []); // Empty dependency array is correct here, we only want to start this process once.
 
-  // Render different UI based on the real-time status
+  // --- UI Rendering (no changes needed here) ---
+
   if (status === 'LOADING') {
     return <p>Bekræfter status for dit medlemskab...</p>;
   }
-
   if (status === 'PENDING') {
     return <p>Betaling modtaget. Venter på endelig aktivering...</p>;
   }
-
   if (status === 'FAILED') {
     return (
       <div>
@@ -74,8 +87,6 @@ export default function SubscriptionSuccessClient() {
       </div>
     );
   }
-
-  // This is the final ACTIVE state
   return (
       <div>
         <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
