@@ -4,8 +4,12 @@ import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-  // I en rigtig app skal dette endpoint sikres, så kun din egen server kan kalde det.
-  // F.eks. med en hemmelig nøgle i headeren.
+  // ===== ADD THIS SECURITY CHECK =====
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  // ===================================
 
   const { agreementId, amount, description, due } = await request.json();
   
