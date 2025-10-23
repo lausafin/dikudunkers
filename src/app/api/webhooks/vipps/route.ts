@@ -10,7 +10,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const rawBody = await request.text();
-    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
+    // === MODIFICATION HERE ===
+    // Reconstruct the path and query from the full URL to be safe.
+    const url = new URL(request.url);
+    const pathAndQuery = url.pathname + url.search;
+    // =========================
+    const isVerified = await verifyVippsWebhook(rawBody, request.headers, pathAndQuery);
     if (!isVerified) {
       console.warn('Webhook verification failed!');
       return new Response('Unauthorized: Signature verification failed', { status: 401 });
