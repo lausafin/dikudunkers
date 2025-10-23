@@ -19,10 +19,10 @@ export async function GET(request: Request) {
   const day = today.getUTCDate();
 
   // Billing months are February (1) and September (8)
-  // const isBillingDay = (month === 1 && day === 1) || (month === 8 && day === 1);
+  const isBillingDay = (month === 1 && day === 1) || (month === 8 && day === 1);
 
   // --- FOR TESTING: UNCOMMENT THE LINE BELOW TO FORCE A BILLING DAY ---
-  const isBillingDay = true; 
+  // const isBillingDay = true; 
 
   if (!isBillingDay) {
     return NextResponse.json({ message: 'Not a billing day. No action taken.' });

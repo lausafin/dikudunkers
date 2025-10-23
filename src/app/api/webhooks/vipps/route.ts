@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     
     // HUSK AT FJERNE KOMMENTERING I PRODUKTION!
-    // const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
-    // if (!isVerified) {
-    //   console.warn('Webhook verification failed!');
-    //   return new Response('Unauthorized: Signature verification failed', { status: 401 });
-    // }
+    const isVerified = await verifyVippsWebhook(rawBody, request.headers, request.nextUrl.pathname);
+    if (!isVerified) {
+      console.warn('Webhook verification failed!');
+      return new Response('Unauthorized: Signature verification failed', { status: 401 });
+    }
 
     const payload = JSON.parse(rawBody);
     const { eventType, agreementId } = payload;

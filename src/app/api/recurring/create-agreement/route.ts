@@ -2,18 +2,19 @@
 import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
-// Vi har ikke længere brug for `pool` her
 
 export async function POST(request: Request) {
   try {
     const accessToken = await getVippsAccessToken();
     const { 
-      phoneNumber, 
+      // phoneNumber er fjernet herfra
+      membershipType, 
       priceInOre, 
       productName 
     } = await request.json();
 
-    if (!phoneNumber || !priceInOre || !productName) {
+    // Opdateret validering
+    if (!membershipType || !priceInOre || !productName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       pricing: { amount: priceInOre, currency: "DKK" },
       merchantRedirectUrl: `${baseUrl}/subscription-success`,
       merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
-      phoneNumber: phoneNumber,
+      // phoneNumber-feltet er nu helt fjernet fra payloaden til Vipps
       productName: productName,
       scope: "name email phoneNumber address birthDate"
     };
@@ -57,9 +58,6 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    
-    // VI HAR FJERNET DATABASE-KODEN HER.
-    // Webhook'en har nu 100% ansvaret for at oprette data, når aftalen er aktiv.
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
 

@@ -3,12 +3,12 @@
 
 import { useState } from 'react';
 
-// Define a type for the membership details
+// Typerne forbliver de samme
 type MembershipDetails = {
   type: 'Haladgang' | 'Kamphold';
   priceInOre: number;
-  displayName: string; // e.g., "150 DKK / halvår"
-  productName: string; // e.g., "DIKU Dunkers Haladgang"
+  displayName: string;
+  productName: string;
 };
 
 type SubscribeButtonProps = {
@@ -23,15 +23,13 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
     setIsLoading(true);
     setError(null);
 
-    // This should be an input field in a real scenario
-    const testPhoneNumber = '66719702'; 
-
     try {
+      // Vi sender ikke længere telefonnummer med fra frontend.
       const response = await fetch('/api/recurring/create-agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          phoneNumber: testPhoneNumber,
+          // Fjern phoneNumber herfra
           membershipType: membership.type,
           priceInOre: membership.priceInOre,
           productName: membership.productName,
@@ -45,6 +43,7 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
       const data = await response.json();
       sessionStorage.setItem('vippsAgreementId', data.agreementId);
+      // Omdirigerer brugeren til den generiske landingsside, hvor de selv indtaster nummer.
       window.location.href = data.vippsConfirmationUrl;
 
     } catch (err) {
@@ -55,13 +54,20 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
   return (
     <div>
-      <button
-        onClick={handleSubscribe}
-        disabled={isLoading}
-        className="bg-blue-600 text-white font-bold py-3 px-6 rounded hover:bg-blue-700 disabled:bg-gray-400 w-full"
-      >
-        {isLoading ? 'Omdirigerer...' : `Tilmeld dig ${membership.type}`}
-      </button>
+      {/* Vi wrapper knappen i en div med onClick for at sikre event-håndtering.
+          Knappen aktiveres kun, hvis den ikke allerede loader. */}
+      <div onClick={!isLoading ? handleSubscribe : undefined}>
+        <vipps-mobilepay-button
+          brand="mobilepay"
+          variant="primary"
+          language="dk"
+          verb="continue"
+          branded="true"
+          rounded="true"
+          stretched="true"
+          loading={isLoading.toString()}
+        ></vipps-mobilepay-button>
+      </div>
       {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
     </div>
   );
