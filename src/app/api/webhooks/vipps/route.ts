@@ -42,24 +42,50 @@ export async function POST(request: NextRequest) {
         );
         break;
 
+      // ==========================================================
+      // == NEW, ROBUST LOGIC FOR HANDLING CHARGE CAPTURE ==
+      // ==========================================================
       case 'recurring.charge-captured.v1':
-        const subscriptionIdForCapture = await getSubscriptionId(agreementId);
-        if (subscriptionIdForCapture) {
+        // Step 1: Try to find the subscription.
+        const subResult = await pool.query(
+          'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
+          [agreementId]
+        );
+        
+        if (subResult.rows.length > 0) {
+          // HAPPY PATH: Agreement webhook arrived first. Just save the charge.
+          const subscriptionId = subResult.rows[0].id;
           await pool.query(
             `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
              VALUES ($1, $2, 'CAPTURED', $3, $4)
              ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED'`,
-            [subscriptionIdForCapture, chargeId, amount, chargeType]
+            [subscriptionId, chargeId, amount, chargeType]
           );
+          console.log(`Charge ${chargeId} (${chargeType}) was captured and saved to DB.`);
         } else {
-          console.error(`CRITICAL: Could not find subscription for agreementId: ${agreementId} during charge capture.`);
-          // Optionally, you could try to fulfill the agreement here as a fallback,
-          // but it indicates a potential race condition or logic issue.
+          // RACE CONDITION PATH: Charge arrived first.
+          console.warn(`Race condition: Charge arrived before agreement for ${agreementId}. Triggering fulfillment...`);
+          
+          // Step 2: Run the fulfillment logic ourselves. This will create the member and subscription.
+          await fetchAndSaveMemberData(agreementId, pool);
+
+          // Step 3: Try to find the subscription AGAIN. It should exist now.
+          const secondSubResult = await pool.query('SELECT id FROM subscriptions WHERE vipps_agreement_id = $1', [agreementId]);
+          if (secondSubResult.rows.length > 0) {
+            const newSubscriptionId = secondSubResult.rows[0].id;
+            // Now that the subscription exists, save the charge record.
+            await pool.query(
+              `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
+               VALUES ($1, $2, 'CAPTURED', $3, $4) ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED'`,
+              [newSubscriptionId, chargeId, amount, chargeType]
+            );
+            console.log(`Charge ${chargeId} was captured and saved to DB after fulfillment.`);
+          } else {
+            // If it still fails, something is seriously wrong with the fulfillment logic.
+            console.error(`CRITICAL: Fulfillment failed for agreementId: ${agreementId}. Could not save charge record.`);
+          }
         }
         break;
-
-      // ==========================================================
-      // == NEW CASE: HANDLE FAILED CHARGES ==
       // ==========================================================
       case 'recurring.charge-failed.v1':
         console.warn(`Payment failed for agreement ${agreementId}, charge ${chargeId}. Suspending subscription.`);
