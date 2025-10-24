@@ -1,34 +1,29 @@
-// src/app/api/recurring/get-status/route.ts
+// src/app/api/recurring/get-status-by-temp-id/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-// This is still important to prevent aggressive caching.
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const agreementId = searchParams.get('agreementId');
+  const tempId = searchParams.get('temp_id');
 
-  if (!agreementId) {
-    return NextResponse.json({ error: 'Agreement ID is required' }, { status: 400 });
+  if (!tempId) {
+    return NextResponse.json({ error: 'temp_id is required' }, { status: 400 });
   }
 
   try {
+    // Find the subscription using the reliable temp_id
     const dbResult = await pool.query(
-      'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
-      [agreementId]
+      'SELECT status FROM subscriptions WHERE temp_redirect_id = $1',
+      [tempId]
     );
 
-    // If the webhook hasn't created the row yet, or it's still pending,
-    // gracefully return 'PENDING'.
     const status = dbResult.rows[0]?.status || 'PENDING';
-
     return NextResponse.json({ status });
 
   } catch (error) {
-    // If the database has a transient error, DO NOT fail the request.
-    // Instead, tell the frontend to just keep trying. The webhook will eventually succeed.
-    console.warn(`Transient error in get-status for ${agreementId}. Returning PENDING.`, error);
+    console.warn(`Transient error in get-status-by-temp-id for ${tempId}. Returning PENDING.`, error);
     return NextResponse.json({ status: 'PENDING' });
   }
 }

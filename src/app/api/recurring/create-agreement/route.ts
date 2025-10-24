@@ -25,6 +25,14 @@ export async function POST(request: Request) {
     };
     const baseUrl = getBaseUrl();
 
+    // ==========================================================
+    // == THE CRITICAL CHANGE IS HERE ==
+    // ==========================================================
+    // We create a temporary, unique ID to pass to Vipps.
+    // We will use this ID to look up the real agreementId later.
+    const tempRedirectId = uuidv4();
+    // ==========================================================
+
     const agreementPayload = {
       interval: { unit: "MONTH", count: 6 },
       initialCharge: {
@@ -33,7 +41,7 @@ export async function POST(request: Request) {
          transactionType: "DIRECT_CAPTURE"
       },
       pricing: { amount: priceInOre, currency: "DKK" },
-      merchantRedirectUrl: `${baseUrl}/subscription-success`,
+      merchantRedirectUrl: `${baseUrl}/subscription-success?temp_id=${tempRedirectId}`,
       merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
       // phoneNumber-feltet er nu helt fjernet fra payloaden til Vipps
       productName: productName,
@@ -60,18 +68,16 @@ export async function POST(request: Request) {
 
     const data = await response.json();
     const { agreementId } = data;
-
-    // === DIAGNOSTIC LOGGING ADDED HERE ===
-    console.log(`[DIAGNOSTIC] Attempting to insert PENDING record for agreementId: ${agreementId}`);
     
+    // Now, we link the temporary ID to the real agreementId in our database
     await pool.query(
-      `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore)
-       VALUES ($1, 'PENDING', $2, $3)
-       ON CONFLICT (vipps_agreement_id) DO NOTHING`,
-      [agreementId, membershipType, priceInOre]
+      `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore, temp_redirect_id)
+       VALUES ($1, 'PENDING', $2, $3, $4)
+       ON CONFLICT (vipps_agreement_id) DO UPDATE SET temp_redirect_id = EXCLUDED.temp_redirect_id`,
+      [agreementId, membershipType, priceInOre, tempRedirectId]
     );
 
-    console.log(`[DIAGNOSTIC] Successfully inserted PENDING record for agreementId: ${agreementId}`);
+    console.log(`[DIAGNOSTIC] Inserted PENDING record for agreementId: ${agreementId}`);
     // =====================================
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });

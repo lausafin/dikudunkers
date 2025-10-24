@@ -2,11 +2,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation'; // <-- STEP 1: Import the necessary hook
 
-// --- UI Components (These are perfect and stay the same) ---
+// --- UI Components (These are perfectly structured) ---
 const LoadingState = () => (
   <>
-    {/* Simple, clean loading spinner */}
     <div 
       style={{ borderTopColor: 'transparent' }}
       className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 mb-4"
@@ -32,14 +32,21 @@ const FailureState = () => (
   </>
 );
 
-// --- The Main Component with the Resilient Poller ---
+
+// --- The Main, Corrected Component ---
 export default function SubscriptionSuccessClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [finalStatus, setFinalStatus] = useState<'ACTIVE' | 'FAILED'>('FAILED');
+  
+  // STEP 2: Use the hook to get access to URL parameters
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const agreementId = sessionStorage.getItem('vippsAgreementId');
-    if (!agreementId) {
+    // STEP 3: Read the temp_id from the URL. This is the reliable handoff.
+    const tempId = searchParams.get('temp_id');
+
+    if (!tempId) {
+      console.error("CRITICAL: No temp_id found in URL. Cannot check status.");
       setIsLoading(false);
       setFinalStatus('FAILED');
       return;
@@ -47,33 +54,26 @@ export default function SubscriptionSuccessClient() {
 
     const pollStatus = async () => {
       try {
-        // ==========================================================
-        // == THE CACHE-BUSTING FIX IS HERE ==
-        // ==========================================================
-        // By adding a unique timestamp query parameter, we force Vercel's Edge
-        // and any browser cache to treat every poll as a unique request.
         const cacheBuster = `t=${Date.now()}`;
-        const response = await fetch(`/api/recurring/get-status?agreementId=${agreementId}&${cacheBuster}`);
-        // ==========================================================
+        // STEP 4: Poll the correct endpoint using the tempId
+        const response = await fetch(`/api/recurring/get-status-by-temp-id?temp_id=${tempId}&${cacheBuster}`);
         
-        if (!response.ok) return; // Don't fail, just wait for the next poll
+        if (!response.ok) return; // Wait for the next poll
 
         const data = await response.json();
 
         if (data.status === 'ACTIVE') {
           setFinalStatus('ACTIVE');
-          setIsLoading(false); // Transition to final state
+          setIsLoading(false);
           clearInterval(intervalId);
           clearTimeout(timeoutId);
-          sessionStorage.removeItem('vippsAgreementId');
         } else if (['STOPPED', 'EXPIRED'].includes(data.status)) {
           setFinalStatus('FAILED');
-          setIsLoading(false); // Transition to final state
+          setIsLoading(false);
           clearInterval(intervalId);
           clearTimeout(timeoutId);
-          sessionStorage.removeItem('vippsAgreementId');
         }
-        // If status is 'PENDING', we do nothing and let the poller continue.
+        // If 'PENDING', do nothing and let the poller continue.
 
       } catch (error) {
         console.warn("Polling request failed, will retry:", error);
@@ -84,9 +84,8 @@ export default function SubscriptionSuccessClient() {
 
     const timeoutId = setTimeout(() => {
       clearInterval(intervalId);
-      // Failsafe: If we are still loading after 20 seconds, default to success.
       if (isLoading) {
-        setFinalStatus('ACTIVE');
+        setFinalStatus('ACTIVE'); // Optimistic fallback
         setIsLoading(false);
       }
     }, 20000);
@@ -97,7 +96,8 @@ export default function SubscriptionSuccessClient() {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [isLoading]); // Re-running useEffect with isLoading is intentional but harmless here.
+    // STEP 5: Use an empty dependency array to ensure this runs only ONCE on mount.
+  }, [searchParams]);
 
   return (
     <div className="flex flex-col items-center justify-center text-center">
