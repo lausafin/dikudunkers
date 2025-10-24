@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation'; // <-- STEP 1: Import the necessary hook
+import LoadingSpinner from '@/components/LoadingSpinner'; // <-- Importer den delte komponent
 
 // --- UI Components (These are perfectly structured) ---
 const LoadingState = () => (
@@ -102,7 +103,7 @@ export default function SubscriptionSuccessClient() {
 
   return (
     <div className="flex flex-col items-center justify-center text-center">
-      {isLoading ? <LoadingState /> : (finalStatus === 'ACTIVE' ? <SuccessState /> : <FailureState />)}
+      {isLoading ? <LoadingSpinner /> : (finalStatus === 'ACTIVE' ? <SuccessState /> : <FailureState />)}
     </div>
   );
 }
