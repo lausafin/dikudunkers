@@ -97,7 +97,8 @@ export default function SubscriptionSuccessClient() {
       clearTimeout(timeoutId);
     };
     // STEP 5: Use an empty dependency array to ensure this runs only ONCE on mount.
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center text-center">

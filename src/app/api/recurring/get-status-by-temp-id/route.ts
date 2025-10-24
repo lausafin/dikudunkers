@@ -1,7 +1,7 @@
 // src/app/api/recurring/get-status-by-temp-id/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { kv } from '@vercel/kv'; // <-- Import Vercel KV
+import getRedisClient from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,31 +14,23 @@ export async function GET(request: Request) {
   }
 
   try {
-    // First, find the real agreementId using the tempId
+    // 1. Lookup subscription by temp ID
     const subIdResult = await pool.query(
       'SELECT vipps_agreement_id FROM subscriptions WHERE temp_redirect_id = $1',
       [tempId]
     );
     const agreementId = subIdResult.rows[0]?.vipps_agreement_id;
+    if (!agreementId) return NextResponse.json({ status: 'PENDING' });
 
-    if (!agreementId) {
-      // If we can't even find the initial record, it's definitely pending.
-      return NextResponse.json({ status: 'PENDING' });
-    }
-
-    // ==========================================================
-    // == THE NEW HIGH-SPEED CHECK ==
-    // ==========================================================
-    // 1. Check the lightning-fast KV store for the status flag.
-    const kvStatus = await kv.get(`status:${agreementId}`);
-    if (kvStatus === 'ACTIVE') {
-      console.log(`[KV HIT] Found ACTIVE status for ${agreementId} in KV store.`);
+    // 2. High-speed Redis check
+    const redis = await getRedisClient();
+    const redisStatus = await redis.get(`status:${agreementId}`);
+    if (redisStatus === 'ACTIVE') {
+      console.log(`[Redis HIT] Found ACTIVE status for ${agreementId} in Redis.`);
       return NextResponse.json({ status: 'ACTIVE' });
     }
-    // ==========================================================
 
-    // 2. FALLBACK: If the flag isn't in KV, check the durable database.
-    //    This handles the case where the user polls *before* the webhook has fired.
+    // 3. Fallback: Check database
     const dbResult = await pool.query(
       'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
       [agreementId]
@@ -47,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ status });
 
   } catch (error) {
-    // Graceful failure still returns PENDING
+    console.error("Error in get-status-by-temp-id:", error);
     return NextResponse.json({ status: 'PENDING' });
   }
 }
