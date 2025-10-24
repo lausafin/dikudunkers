@@ -3,8 +3,36 @@
 
 import { useEffect, useState } from 'react';
 
+// --- UI Components for each state ---
+
+const LoadingState = () => (
+  <>
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+    <h1 className="text-2xl font-bold">Bekræfter din tilmelding...</h1>
+    <p>Et øjeblik, vi behandler din anmodning.</p>
+  </>
+);
+
+const SuccessState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
+    <p>Dit medlemskab er nu aktivt og bekræftet.</p>
+    <p>Du kan se og administrere din aftale i din MobilePay-app.</p>
+  </>
+);
+
+const FailureState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
+    <p>Vi kunne desværre ikke bekræfte dit medlemskab lige nu.</p>
+    <p>Tjek venligst din MobilePay-app for status, eller kontakt support hvis problemet vedvarer.</p>
+  </>
+);
+
+// --- The Main Component ---
+
 export default function SubscriptionSuccessClient() {
-  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'PENDING' | 'FAILED'>('LOADING');
+  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED'>('LOADING');
 
   useEffect(() => {
     const agreementId = sessionStorage.getItem('vippsAgreementId');
@@ -13,85 +41,56 @@ export default function SubscriptionSuccessClient() {
       return;
     }
 
-    let consecutiveFailedPolls = 0; // Track consecutive failures
-
     const pollStatus = async () => {
       try {
         const response = await fetch(`/api/recurring/get-status?agreementId=${agreementId}`);
         const data = await response.json();
 
-        // If we get a valid response, reset the failure counter
-        consecutiveFailedPolls = 0;
-
+        // We only care about FINAL states. If it's 'PENDING', we just wait.
         if (data.status === 'ACTIVE') {
           setStatus('ACTIVE');
           clearInterval(intervalId);
-          clearTimeout(timeoutId); // Clean up timeout as well
+          clearTimeout(timeoutId);
           sessionStorage.removeItem('vippsAgreementId');
-        } else if (data.status === 'STOPPED' || data.status === 'EXPIRED') {
+        } else if (['STOPPED', 'EXPIRED'].includes(data.status)) {
           setStatus('FAILED');
           clearInterval(intervalId);
           clearTimeout(timeoutId);
           sessionStorage.removeItem('vippsAgreementId');
-        } else {
-          // It's still PENDING, we keep waiting.
-          setStatus('PENDING');
         }
+        // If status is 'PENDING', we do nothing and let the next poll handle it.
       } catch (error) {
-        console.warn("A poll request failed. Retrying...", error);
-        consecutiveFailedPolls++;
-
-        // If we fail 3 times in a row, then we give up.
-        if (consecutiveFailedPolls > 3) {
-          console.error("Polling failed multiple times. Setting status to FAILED.");
-          setStatus('FAILED');
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
-        }
+        // We log the error but don't fail immediately, letting the poller retry.
+        console.warn("Polling request failed, will retry:", error);
       }
     };
 
-    // Start polling immediately, then every 3 seconds.
-    pollStatus();
-    const intervalId = setInterval(pollStatus, 3000);
+    // Poll every 2 seconds for a faster feel.
+    const intervalId = setInterval(pollStatus, 2000);
 
-    // The optimistic timeout: If after 30 seconds we are still pending,
-    // assume success for the user's sake. The webhook is the source of truth for the backend.
+    // After 20 seconds, we stop polling and optimistically assume success for the UX.
+    // Our backend webhook is the true guarantee.
     const timeoutId = setTimeout(() => {
       clearInterval(intervalId);
-      setStatus(currentStatus => 
-        currentStatus === 'PENDING' || currentStatus === 'LOADING' ? 'ACTIVE' : currentStatus
-      );
-    }, 30000);
+      // Only transition if we are still in the loading state.
+      setStatus(currentStatus => currentStatus === 'LOADING' ? 'ACTIVE' : currentStatus);
+    }, 20000); // 20-second timeout
 
-    // Cleanup function to stop polling if the component unmounts
+    // Initial poll immediately on load.
+    pollStatus();
+
+    // Cleanup on unmount.
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, []); // Empty dependency array is correct here, we only want to start this process once.
+  }, []);
 
-  // --- UI Rendering (no changes needed here) ---
-
-  if (status === 'LOADING') {
-    return <p>Bekræfter status for dit medlemskab...</p>;
-  }
-  if (status === 'PENDING') {
-    return <p>Betaling modtaget. Venter på endelig aktivering...</p>;
-  }
-  if (status === 'FAILED') {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
-        <p>Vi kunne desværre ikke bekræfte dit medlemskab lige nu. Tjek venligst din MobilePay-app for status, eller kontakt support.</p>
-      </div>
-    );
-  }
   return (
-      <div>
-        <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
-        <p>Dit medlemskab er nu aktivt og bekræftet.</p>
-        <p>Du kan se og administrere din aftale i din MobilePay-app.</p>
-      </div>
+    <div className="flex flex-col items-center justify-center text-center">
+      {status === 'LOADING' && <LoadingState />}
+      {status === 'ACTIVE' && <SuccessState />}
+      {status === 'FAILED' && <FailureState />}
+    </div>
   );
 }
