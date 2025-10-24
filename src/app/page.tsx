@@ -4,14 +4,14 @@ import SubscribeButton from '@/components/SubscribeButton';
 const memberships = {
   haladgang: {
     type: 'Haladgang',
-    priceInOre: 15000,
+    priceInOre: 15,
     displayName: '150 DKK / halvår',
     productName: 'DIKU Dunkers Haladgang',
     description: 'Adgang til træning og faciliteter. Perfekt for motionister.'
   },
   kamphold: {
     type: 'Kamphold',
-    priceInOre: 35000,
+    priceInOre: 35,
     displayName: '350 DKK / halvår',
     productName: 'DIKU Dunkers Kamphold',
     description: 'Deltagelse i kampe, stævner og fuld adgang til træning.'
