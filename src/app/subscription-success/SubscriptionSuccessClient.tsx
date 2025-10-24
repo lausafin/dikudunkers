@@ -4,9 +4,33 @@
 import { useEffect, useState } from 'react';
 
 // --- UI Components (These are perfect and stay the same) ---
-const LoadingState = () => (/* ... */);
-const SuccessState = () => (/* ... */);
-const FailureState = () => (/* ... */);
+const LoadingState = () => (
+  <>
+    {/* Simple, clean loading spinner */}
+    <div 
+      style={{ borderTopColor: 'transparent' }}
+      className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 mb-4"
+    ></div>
+    <h1 className="text-2xl font-bold">Bekræfter din tilmelding...</h1>
+    <p>Dette tager kun et øjeblik.</p>
+  </>
+);
+
+const SuccessState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
+    <p>Dit medlemskab er nu aktivt og bekræftet.</p>
+    <p>Du kan se og administrere din aftale i din MobilePay-app.</p>
+  </>
+);
+
+const FailureState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
+    <p>Vi kunne desværre ikke bekræfte dit medlemskab lige nu.</p>
+    <p>Tjek venligst din MobilePay-app for status, eller kontakt support hvis problemet vedvarer.</p>
+  </>
+);
 
 // --- The Main Component with the Resilient Poller ---
 export default function SubscriptionSuccessClient() {
