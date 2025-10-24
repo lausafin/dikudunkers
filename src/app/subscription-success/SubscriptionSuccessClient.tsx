@@ -3,13 +3,17 @@
 
 import { useEffect, useState } from 'react';
 
-// --- UI Components for each state ---
+// --- UI Components for each state (these are great, let's keep them) ---
 
 const LoadingState = () => (
   <>
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+    {/* Simple, clean loading spinner */}
+    <div 
+      style={{ borderTopColor: 'transparent' }}
+      className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 mb-4"
+    ></div>
     <h1 className="text-2xl font-bold">Bekræfter din tilmelding...</h1>
-    <p>Et øjeblik, vi behandler din anmodning.</p>
+    <p>Dette tager kun et øjeblik.</p>
   </>
 );
 
@@ -29,68 +33,61 @@ const FailureState = () => (
   </>
 );
 
+
 // --- The Main Component ---
 
 export default function SubscriptionSuccessClient() {
-  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED'>('LOADING');
+  const [isFinal, setIsFinal] = useState(false);
+  const [finalStatus, setFinalStatus] = useState<'ACTIVE' | 'FAILED'>('FAILED');
 
   useEffect(() => {
     const agreementId = sessionStorage.getItem('vippsAgreementId');
-    if (!agreementId) {
-      setStatus('FAILED');
-      return;
-    }
+    
+    // Define the final check function
+    const performFinalCheck = async () => {
+      if (!agreementId) {
+        setFinalStatus('FAILED');
+        setIsFinal(true);
+        return;
+      }
 
-    const pollStatus = async () => {
       try {
         const response = await fetch(`/api/recurring/get-status?agreementId=${agreementId}`);
+        if (!response.ok) throw new Error("API check failed");
+
         const data = await response.json();
 
-        // We only care about FINAL states. If it's 'PENDING', we just wait.
+        // The final verdict: is it active or not?
         if (data.status === 'ACTIVE') {
-          setStatus('ACTIVE');
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
-          sessionStorage.removeItem('vippsAgreementId');
-        } else if (['STOPPED', 'EXPIRED'].includes(data.status)) {
-          setStatus('FAILED');
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
-          sessionStorage.removeItem('vippsAgreementId');
+          setFinalStatus('ACTIVE');
+        } else {
+          // Any other status (PENDING, STOPPED, EXPIRED) is considered a failure from the UI's perspective.
+          setFinalStatus('FAILED');
         }
-        // If status is 'PENDING', we do nothing and let the next poll handle it.
       } catch (error) {
-        // We log the error but don't fail immediately, letting the poller retry.
-        console.warn("Polling request failed, will retry:", error);
+        console.error("Final check failed:", error);
+        setFinalStatus('FAILED');
+      } finally {
+        // This is the most important step: we are now ready to show the final UI.
+        setIsFinal(true);
+        sessionStorage.removeItem('vippsAgreementId');
       }
     };
 
-    // Poll every 2 seconds for a faster feel.
-    const intervalId = setInterval(pollStatus, 2000);
+    // Set a timeout to perform the final check after 5 seconds.
+    const timer = setTimeout(performFinalCheck, 5000);
 
-    // After 20 seconds, we stop polling and optimistically assume success for the UX.
-    // Our backend webhook is the true guarantee.
-    const timeoutId = setTimeout(() => {
-      clearInterval(intervalId);
-      // Only transition if we are still in the loading state.
-      setStatus(currentStatus => currentStatus === 'LOADING' ? 'ACTIVE' : currentStatus);
-    }, 20000); // 20-second timeout
-
-    // Initial poll immediately on load.
-    pollStatus();
-
-    // Cleanup on unmount.
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-    };
-  }, []);
+    // Cleanup function in case the component unmounts prematurely.
+    return () => clearTimeout(timer);
+  }, []); // Run only once on mount.
 
   return (
     <div className="flex flex-col items-center justify-center text-center">
-      {status === 'LOADING' && <LoadingState />}
-      {status === 'ACTIVE' && <SuccessState />}
-      {status === 'FAILED' && <FailureState />}
+      {/* Show the loading state until the final check is complete */}
+      {!isFinal && <LoadingState />}
+
+      {/* Once the check is complete, show the definitive result */}
+      {isFinal && (finalStatus === 'ACTIVE' ? <SuccessState /> : <FailureState />)}
     </div>
   );
 }
