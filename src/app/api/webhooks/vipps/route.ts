@@ -3,6 +3,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { verifyVippsWebhook } from '@/lib/vipps-security';
 import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
+import { kv } from '@vercel/kv';
 
 export async function POST(request: NextRequest) {
   // INTENTIONALLY THROW AN ERROR TO SIMULATE A FAILURE
@@ -38,17 +39,18 @@ export async function POST(request: NextRequest) {
 
     switch (eventType) {
       case 'recurring.agreement-activated.v1':
+        // 1. Perform the durable database operations as before.
         await fetchAndSaveMemberData(agreementId, pool);
-        break;
 
-      // --- CORRECTED LOGIC FOR 'stopped' ---
-      case 'recurring.agreement-stopped.v1':
-        console.log(`Agreement ${agreementId} was stopped. Marking as STOPPED in DB.`);
-        await pool.query(
-          // This query updates the status to 'STOPPED' regardless of its previous state (e.g., ACTIVE or PENDING).
-          "UPDATE subscriptions SET status = 'STOPPED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
-          [agreementId]
-        );
+        // ==========================================================
+        // == THE NEW HIGH-SPEED NOTIFICATION STEP ==
+        // ==========================================================
+        // 2. After the database is updated, set a flag in the fast KV store.
+        //    This flag tells the poller "The work is done!".
+        //    We set an expiration of 5 minutes (300 seconds) to auto-clean the flag.
+        await kv.set(`status:${agreementId}`, 'ACTIVE', { ex: 300 });
+        console.log(`[KV NOTIFICATION] Set status flag for ${agreementId} to ACTIVE.`);
+        // ==========================================================
         break;
       
       // --- CORRECT LOGIC FOR 'expired' (your original logic was perfect for this) ---
