@@ -7,7 +7,7 @@ export default function SalgsbetingelserPage() {
 
       <h2>Betaling</h2>
       <p>
-        DIKU Dunkers modtager online betalinger med [Indsæt korttyper, f.eks. Dankort, Visa/Dankort, Visa, Mastercard] og MobilePay.
+        DIKU Dunkers modtager online betalinger med MobilePay.
         Betaling vil først blive trukket på din konto, når den fysiske vare afsendes eller det virtuelle produkt er oprettet, med mindre andet er aftalt.
       </p>
 
