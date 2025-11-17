@@ -6,14 +6,14 @@ const memberships = {
     type: 'Haladgang',
     priceInOre: 15000,
     displayName: '150 DKK / halvår',
-    productName: 'DIKU Dunkers Haladgang',
+    productName: 'Haladgang',
     description: 'Adgang til træning og faciliteter. Perfekt for motionister.'
   },
   kamphold: {
     type: 'Kamphold',
     priceInOre: 35000,
     displayName: '350 DKK / halvår',
-    productName: 'DIKU Dunkers Kamphold',
+    productName: 'Kamphold',
     description: 'Deltagelse i kampe, stævner og fuld adgang til træning.'
   }
 } as const;
