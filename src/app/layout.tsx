@@ -15,8 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="da">
       <head>
-        {/* 2. Tilføj scriptet her i <head>. 
-            'beforeInteractive' sikrer, at scriptet er klar, før brugeren kan interagere med siden. */}
+        <link rel="icon" href="images/favicon.ico" type="image/x-icon"></link>
         <Script
           src="https://checkout.vipps.no/checkout-button/v1/vipps-checkout-button.js"
           strategy="beforeInteractive"
