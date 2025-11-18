@@ -24,7 +24,7 @@ export default function SalgsbetingelserPage() {
       <h2>Klagehåndtering</h2>
       <p>
         Hvis du har en klage over et produkt, købt i vores webshop, kan der sendes en klage til:
-        DIKU Dunkers, Universitetsparken 1, 8000 2100 København Ø, email: dikudunkers@di.ku.dk.
+        DIKU Dunkers, Universitetsparken 1, 2100 København Ø, email: dikudunkers@di.ku.dk.
         Hvis det ikke lykkes os at finde en løsning, kan du sende en klage til Center for Klageløsning, Nævnenes Hus, Toldboden 2, 8800 Viborg.
       </p>
     </div>
