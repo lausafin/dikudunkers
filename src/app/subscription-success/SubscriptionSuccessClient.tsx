@@ -1,21 +1,10 @@
-// src/app/subscription-success/SubscriptionSuccessClient.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation'; // <-- STEP 1: Import the necessary hook
-import LoadingSpinner from '@/components/LoadingSpinner'; // <-- Importer den delte komponent
+import { useSearchParams } from 'next/navigation';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
-// --- UI Components (These are perfectly structured) ---
-const LoadingState = () => (
-  <>
-    <div 
-      style={{ borderTopColor: 'transparent' }}
-      className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 mb-4"
-    ></div>
-    <h1 className="text-2xl font-bold">Bekræfter din tilmelding...</h1>
-    <p>Dette tager kun et øjeblik.</p>
-  </>
-);
+// --- UI Components ---
 
 const SuccessState = () => (
   <>
@@ -27,83 +16,101 @@ const SuccessState = () => (
 
 const FailureState = () => (
   <>
-    <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
-    <p>Vi kunne desværre ikke bekræfte dit medlemskab lige nu.</p>
-    <p>Tjek venligst din MobilePay-app for status, eller kontakt support hvis problemet vedvarer.</p>
+    <h1 className="text-2xl font-bold text-red-600">Betaling afbrudt eller fejlet</h1>
+    <p>Vi kunne ikke oprette dit medlemskab.</p>
+    <p>Prøv igen, eller kontakt support hvis problemet vedvarer.</p>
   </>
 );
 
+// New State for when we stop polling but don't have a definitive Yes/No
+const TimeoutState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-orange-600">Afventer bekræftelse</h1>
+    <p>Vi har ikke modtaget den endelige bekræftelse fra MobilePay endnu.</p>
+    <p className="mt-4 font-semibold">Tjek din MobilePay-app:</p>
+    <ul className="list-disc list-inside text-left mt-2 mb-4 max-w-md mx-auto">
+      <li>Hvis betalingen er gået igennem der, er du medlem.</li>
+      <li>Hvis betalingen ikke ses i appen, bedes du prøve igen.</li>
+    </ul>
+  </>
+);
 
-// --- The Main, Corrected Component ---
+// --- Main Component ---
 export default function SubscriptionSuccessClient() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [finalStatus, setFinalStatus] = useState<'ACTIVE' | 'FAILED'>('FAILED');
+  // We use a simplified status enum: 'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT'
+  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT'>('LOADING');
   
-  // STEP 2: Use the hook to get access to URL parameters
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // STEP 3: Read the temp_id from the URL. This is the reliable handoff.
     const tempId = searchParams.get('temp_id');
 
     if (!tempId) {
-      console.error("CRITICAL: No temp_id found in URL. Cannot check status.");
-      setIsLoading(false);
-      setFinalStatus('FAILED');
+      console.error("CRITICAL: No temp_id found in URL.");
+      setStatus('FAILED');
       return;
     }
 
     const pollStatus = async () => {
       try {
         const cacheBuster = `t=${Date.now()}`;
-        // STEP 4: Poll the correct endpoint using the tempId
         const response = await fetch(`/api/recurring/get-status-by-temp-id?temp_id=${tempId}&${cacheBuster}`);
         
-        if (!response.ok) return; // Wait for the next poll
+        if (!response.ok) return; 
 
         const data = await response.json();
 
         if (data.status === 'ACTIVE') {
-          setFinalStatus('ACTIVE');
-          setIsLoading(false);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
-        } else if (['STOPPED', 'EXPIRED'].includes(data.status)) {
-          setFinalStatus('FAILED');
-          setIsLoading(false);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
+          setStatus('ACTIVE');
+          // We don't need to clear intervals manually here if we just unmount or let the effect cleanup handle it,
+          // but strictly speaking, we stop logic via the state change.
+        } else if (['STOPPED', 'EXPIRED', 'FAILED'].includes(data.status)) {
+          setStatus('FAILED');
         }
-        // If 'PENDING', do nothing and let the poller continue.
-
+        // If 'PENDING', we do nothing and wait for next poll
       } catch (error) {
         console.warn("Polling request failed, will retry:", error);
       }
     };
 
-    const intervalId = setInterval(pollStatus, 2000);
+    // Poll every 2 seconds
+    const intervalId = setInterval(() => {
+      // Only poll if we are still loading
+      setStatus((prev) => {
+        if (prev === 'LOADING') {
+          pollStatus();
+          return 'LOADING';
+        }
+        return prev;
+      });
+    }, 2000);
 
+    // Timeout after 30 seconds (Increased from 20s to be safer)
     const timeoutId = setTimeout(() => {
-      clearInterval(intervalId);
-      if (isLoading) {
-        setFinalStatus('ACTIVE'); // Optimistic fallback
-        setIsLoading(false);
-      }
-    }, 20000);
+      setStatus((prev) => {
+        if (prev === 'LOADING') {
+          return 'TIMEOUT'; // <--- CHANGED: No longer assumes 'ACTIVE'
+        }
+        return prev;
+      });
+    }, 30000); 
 
-    pollStatus(); // Initial poll
+    // Initial check
+    pollStatus();
 
+    // Cleanup
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-    // STEP 5: Use an empty dependency array to ensure this runs only ONCE on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   return (
-    <div className="flex flex-col items-center justify-center text-center">
-      {isLoading ? <LoadingSpinner /> : (finalStatus === 'ACTIVE' ? <SuccessState /> : <FailureState />)}
+    <div className="flex flex-col items-center justify-center text-center space-y-4">
+      {status === 'LOADING' && <LoadingSpinner />}
+      {status === 'ACTIVE' && <SuccessState />}
+      {status === 'FAILED' && <FailureState />}
+      {status === 'TIMEOUT' && <TimeoutState />}
     </div>
   );
 }
