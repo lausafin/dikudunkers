@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import getRedisClient from '@/lib/redis';
+import { getVippsAccessToken } from '@/lib/vipps'; // <--- Need this to ask Vipps
+import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo'; // <--- To sync data if active
 
 export const dynamic = 'force-dynamic';
 
@@ -14,57 +16,87 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Lookup subscription by temp ID (Source of Truth #1)
-    // This MUST happen first to get the real Agreement ID.
+    // 1. LOCAL DB LOOKUP
     const subIdResult = await pool.query(
       'SELECT vipps_agreement_id FROM subscriptions WHERE temp_redirect_id = $1',
       [tempId]
     );
     const agreementId = subIdResult.rows[0]?.vipps_agreement_id;
 
-    // If we don't even have an agreement ID yet, it's definitely PENDING.
     if (!agreementId) return NextResponse.json({ status: 'PENDING' });
 
-    // ==========================================================
-    // 2. High-speed Redis check (Optimistic)
-    // ==========================================================
+    // 2. REDIS CHECK (Fastest)
     try {
-      // We wrap this in its OWN try/catch so it can fail without killing the request.
-      // We also race it against a 500ms timeout. If Redis is slow, we skip it.
-      const redisPromise = async () => {
-         const redis = await getRedisClient();
-         return await redis.get(`status:${agreementId}`);
-      };
-
-      const timeoutPromise = new Promise<null>((resolve) => 
-        setTimeout(() => resolve(null), 500)
-      );
-
-      const redisStatus = await Promise.race([redisPromise(), timeoutPromise]);
-
+      const redis = await getRedisClient();
+      const redisStatus = await redis.get(`status:${agreementId}`);
       if (redisStatus === 'ACTIVE') {
-        // console.log(`[Redis HIT] Found ACTIVE status for ${agreementId}`);
         return NextResponse.json({ status: 'ACTIVE' });
       }
-    } catch (redisError) {
-      // If Redis fails, is deleted, or times out, we just log a warning and CONTINUE.
-      console.warn("Redis check failed or timed out. Falling back to DB.", redisError);
-    }
-    // ==========================================================
+    } catch (e) { /* Ignore Redis errors */ }
 
-
-    // 3. Fallback: Check database (Source of Truth #2)
-    // This now runs even if Redis crashed above.
+    // 3. DB STATUS CHECK
     const dbResult = await pool.query(
       'SELECT status FROM subscriptions WHERE vipps_agreement_id = $1',
       [agreementId]
     );
-    const status = dbResult.rows[0]?.status || 'PENDING';
-    
-    return NextResponse.json({ status });
+    let currentStatus = dbResult.rows[0]?.status || 'PENDING';
+
+    // =====================================================================
+    // 4. THE LIVE CHECK (If local DB is stale, ask Vipps directly)
+    // =====================================================================
+    if (currentStatus === 'PENDING') {
+      try {
+        console.log(`[Live Poll] Checking Vipps API for ${agreementId}...`);
+        const accessToken = await getVippsAccessToken();
+        
+        const vippsResponse = await fetch(`${process.env.VIPPS_API_BASE_URL}/recurring/v3/agreements/${agreementId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Ocp-Apim-Subscription-Key': process.env.VIPPS_RECURRING_SUB_KEY!,
+            'Merchant-Serial-Number': process.env.VIPPS_MSN!,
+          },
+        });
+
+        if (vippsResponse.ok) {
+          const vippsData = await vippsResponse.json();
+          const liveStatus = vippsData.status; // 'ACTIVE', 'STOPPED', 'EXPIRED', 'PENDING'
+
+          // If Vipps has a newer status than us, UPDATE our database immediately.
+          if (liveStatus !== 'PENDING') {
+            console.log(`[Live Poll] Status changed to ${liveStatus}. Syncing DB...`);
+            
+            if (liveStatus === 'ACTIVE') {
+               // Run the full member creation logic if it became active
+               await fetchAndSaveMemberData(agreementId, pool);
+               
+               // Update Redis to save future API calls
+               try {
+                 const redis = await getRedisClient();
+                 await redis.set(`status:${agreementId}`, 'ACTIVE', { EX: 300 });
+               } catch (e) {}
+            } else {
+               // For STOPPED (Cancelled) or EXPIRED
+               await pool.query(
+                 "UPDATE subscriptions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $2",
+                 [liveStatus, agreementId]
+               );
+            }
+            
+            // Update the variable so we return the correct status to frontend
+            currentStatus = liveStatus;
+          }
+        }
+      } catch (vippsError) {
+        console.error("Failed to live-poll Vipps:", vippsError);
+        // We suppress the error and just return PENDING so the user keeps polling
+      }
+    }
+    // =====================================================================
+
+    return NextResponse.json({ status: currentStatus });
 
   } catch (error) {
-    // This catch block handles DATABASE errors (the critical ones).
     console.error("Error in get-status-by-temp-id:", error);
     return NextResponse.json({ status: 'PENDING' });
   }
