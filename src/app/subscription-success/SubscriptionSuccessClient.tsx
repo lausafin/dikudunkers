@@ -16,13 +16,20 @@ const SuccessState = () => (
 
 const FailureState = () => (
   <>
-    <h1 className="text-2xl font-bold text-red-600">Betaling afbrudt eller fejlet</h1>
+    <h1 className="text-2xl font-bold text-red-600">Betaling fejlet</h1>
     <p>Vi kunne ikke oprette dit medlemskab.</p>
     <p>Prøv igen, eller kontakt support hvis problemet vedvarer.</p>
   </>
 );
 
-// New State for when we stop polling but don't have a definitive Yes/No
+const CancelState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-yellow-600">Betaling afbrudt</h1>
+    <p>Du afbrød oprettelsen i MobilePay.</p>
+    <p className="mt-2">Du kan lukke denne fane eller gå tilbage for at prøve igen.</p>
+  </>
+);
+
 const TimeoutState = () => (
   <>
     <h1 className="text-2xl font-bold text-orange-600">Afventer bekræftelse</h1>
@@ -37,12 +44,19 @@ const TimeoutState = () => (
 
 // --- Main Component ---
 export default function SubscriptionSuccessClient() {
-  // We use a simplified status enum: 'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT'
-  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT'>('LOADING');
+  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT' | 'CANCELLED'>('LOADING');
   
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // 1. FAST CHECK: Did Vipps send us back with an error?
+    // If the user hits "Cancel" in MobilePay, Vipps often appends &error=access_denied
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'access_denied') {
+      setStatus('CANCELLED');
+      return; // Stop here, no need to poll
+    }
+
     const tempId = searchParams.get('temp_id');
 
     if (!tempId) {
@@ -60,14 +74,18 @@ export default function SubscriptionSuccessClient() {
 
         const data = await response.json();
 
+        // 2. LOGIC FIX: Check specific statuses first
         if (data.status === 'ACTIVE') {
           setStatus('ACTIVE');
-          // We don't need to clear intervals manually here if we just unmount or let the effect cleanup handle it,
-          // but strictly speaking, we stop logic via the state change.
-        } else if (['STOPPED', 'EXPIRED', 'FAILED'].includes(data.status)) {
-          setStatus('FAILED');
+        } 
+        else if (data.status === 'STOPPED') {
+            // If the DB says STOPPED this early, the user likely cancelled immediately
+            setStatus('CANCELLED');
         }
-        // If 'PENDING', we do nothing and wait for next poll
+        else if (['EXPIRED', 'FAILED'].includes(data.status)) {
+          setStatus('FAILED');
+        } 
+        // If 'PENDING', do nothing and wait
       } catch (error) {
         console.warn("Polling request failed, will retry:", error);
       }
@@ -75,30 +93,29 @@ export default function SubscriptionSuccessClient() {
 
     // Poll every 2 seconds
     const intervalId = setInterval(() => {
-      // Only poll if we are still loading
       setStatus((prev) => {
-        if (prev === 'LOADING') {
-          pollStatus();
-          return 'LOADING';
+        // Stop polling if we reached a final state
+        if (prev !== 'LOADING') {
+            clearInterval(intervalId);
+            return prev;
         }
-        return prev;
+        pollStatus();
+        return 'LOADING';
       });
     }, 2000);
 
-    // Timeout after 30 seconds (Increased from 20s to be safer)
+    // Timeout after 30 seconds
     const timeoutId = setTimeout(() => {
       setStatus((prev) => {
         if (prev === 'LOADING') {
-          return 'TIMEOUT'; // <--- CHANGED: No longer assumes 'ACTIVE'
+          return 'TIMEOUT';
         }
         return prev;
       });
     }, 30000); 
 
-    // Initial check
-    pollStatus();
+    pollStatus(); // Initial poll
 
-    // Cleanup
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
@@ -110,6 +127,7 @@ export default function SubscriptionSuccessClient() {
       {status === 'LOADING' && <LoadingSpinner />}
       {status === 'ACTIVE' && <SuccessState />}
       {status === 'FAILED' && <FailureState />}
+      {status === 'CANCELLED' && <CancelState />}
       {status === 'TIMEOUT' && <TimeoutState />}
     </div>
   );

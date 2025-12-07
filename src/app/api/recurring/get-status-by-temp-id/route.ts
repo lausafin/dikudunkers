@@ -29,8 +29,6 @@ export async function GET(request: Request) {
     // 2. High-speed Redis check (Optimistic)
     // ==========================================================
     try {
-      // TEMP: SABOTAGE LINE - UNCOMMENT TO TEST FALLBACK
-      throw new Error("Simulating Redis Explosion"); 
       // We wrap this in its OWN try/catch so it can fail without killing the request.
       // We also race it against a 500ms timeout. If Redis is slow, we skip it.
       const redisPromise = async () => {

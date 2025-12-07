@@ -4,7 +4,6 @@ import pool from '@/lib/db';
 import { verifyVippsWebhook } from '@/lib/vipps-security';
 import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
 import getRedisClient from '@/lib/redis';
-import { PoolClient } from 'pg';
 
 // 1. Type Definitions for better safety
 interface VippsWebhookPayload {
