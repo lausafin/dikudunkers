@@ -49,12 +49,19 @@ export default function SubscriptionSuccessClient() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // 1. FAST CHECK: Did Vipps send us back with an error?
-    // If the user hits "Cancel" in MobilePay, Vipps often appends &error=access_denied
-    const errorParam = searchParams.get('error');
-    if (errorParam === 'access_denied') {
+     // 1. INSTANT CHECK: URL Parameters
+    // MobilePay usually adds ?error=access_denied or ?error=user_cancel
+    const error = searchParams.get('error');
+    const errorCode = searchParams.get('error_code');
+    
+    // Debugging: See exactly what Vipps sends when you cancel
+    if (error || errorCode) {
+      console.log("Vipps Redirect Params:", { error, errorCode });
+    }
+
+    if (error === 'access_denied' || error === 'user_cancel' || errorCode === '400') {
       setStatus('CANCELLED');
-      return; // Stop here, no need to poll
+      return; // Stop here, do not poll
     }
 
     const tempId = searchParams.get('temp_id');
