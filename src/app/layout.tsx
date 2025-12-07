@@ -7,9 +7,15 @@ import Script from 'next/script'; // 1. Importer Script-komponenten
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'DIKU Dunkers Medlemskab', // Opdateret titel for relevans
+  title: 'DIKU Dunkers', // Opdateret titel for relevans
   description: 'Bliv medlem af DIKU Dunkers basketballklub.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
+
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

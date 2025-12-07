@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     // We create a temporary, unique ID to pass to Vipps.
     // We will use this ID to look up the real agreementId later.
     const tempRedirectId = uuidv4();
+    const magicAccessToken = uuidv4();
     // ==========================================================
 
     const agreementPayload = {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       },
       pricing: { amount: priceInOre, currency: "DKK" },
       merchantRedirectUrl: `${baseUrl}/subscription-success?temp_id=${tempRedirectId}`,
-      merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
+      merchantAgreementUrl: `${baseUrl}/api/auth/magic-login/${magicAccessToken}`,
       // phoneNumber-feltet er nu helt fjernet fra payloaden til Vipps
       productName: productName,
       scope: "name email phoneNumber address birthDate"
