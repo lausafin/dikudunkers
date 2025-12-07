@@ -74,9 +74,9 @@ export default async function SubscriptionPage() {
 
             <div className="mt-8 pt-4 text-center">
                <p className="text-sm text-gray-500 mb-2">Opsigelse sker via MobilePay:</p>
-               {/* NEW (Fixed) */}
               <p className="text-xs text-gray-400">
                 Menu &rarr; Aftaler &rarr; DIKU Dunkers &rarr; Afslut aftale
+                &quot;Afslut aftale&quot;.
               </p>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default async function SubscriptionPage() {
         <h1 className="text-3xl font-bold mb-6">Mit Medlemskab</h1>
         <div className="space-y-6 text-lg text-gray-700">
           <p>DIKU Dunkers bruger <strong>MobilePay</strong> til administration.</p>
-          <p>For at se eller opsige dit medlemskab, skal du åbne din MobilePay-app og finde aftalen under "Aftaler".</p>
+          <p>For at se eller opsige dit medlemskab, skal du åbne din MobilePay-app og finde aftalen under &quot;Aftaler&quot;.</p>
         </div>
       </div>
     </div>

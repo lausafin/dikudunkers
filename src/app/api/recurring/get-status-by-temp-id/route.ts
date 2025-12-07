@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       if (redisStatus === 'ACTIVE') {
         return NextResponse.json({ status: 'ACTIVE' });
       }
-    } catch (e) { /* Ignore Redis errors */ }
+    } catch (_e) { /* Ignore Redis errors */ }
 
     // 3. DB STATUS CHECK
     const dbResult = await pool.query(
