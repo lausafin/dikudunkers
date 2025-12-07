@@ -14,6 +14,8 @@ export async function GET(request: Request) {
   }
 
   try {
+      // TEMP: SABOTAGE LINE - UNCOMMENT TO TEST FALLBACK
+      throw new Error("Simulating Redis Explosion"); 
     // 1. Lookup subscription by temp ID (Source of Truth #1)
     // This MUST happen first to get the real Agreement ID.
     const subIdResult = await pool.query(
