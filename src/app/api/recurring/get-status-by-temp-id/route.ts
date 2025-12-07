@@ -74,7 +74,7 @@ export async function GET(request: Request) {
                try {
                  const redis = await getRedisClient();
                  await redis.set(`status:${agreementId}`, 'ACTIVE', { EX: 300 });
-               } catch (e) {}
+               } catch (_e) {}
             } else {
                // For STOPPED (Cancelled) or EXPIRED
                await pool.query(

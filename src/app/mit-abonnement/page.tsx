@@ -74,7 +74,10 @@ export default async function SubscriptionPage() {
 
             <div className="mt-8 pt-4 text-center">
                <p className="text-sm text-gray-500 mb-2">Opsigelse sker via MobilePay:</p>
-               <p className="text-xs text-gray-400">Menu &rarr; Aftaler &rarr; DIKU Dunkers &rarr; Afslut aftale</p>
+               {/* NEW (Fixed) */}
+              <p className="text-xs text-gray-400">
+                Menu &rarr; Aftaler &rarr; DIKU Dunkers &rarr; Afslut aftale
+              </p>
             </div>
           </div>
         </div>
