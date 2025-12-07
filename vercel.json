@@ -5,12 +5,8 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/cleanup-pending",
+      "path": "/api/cron/cleanup-and-keepalive",
       "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/keepalive-redis",
-      "schedule": "0 0 1,15 * *" 
     }
   ],
   "headers": [
