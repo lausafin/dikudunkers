@@ -44,11 +44,11 @@ export default async function SubscriptionPage() {
     return (
       <div className="container mx-auto max-w-xl py-12 px-4">
         <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-          <div className="bg-gray-50 p-6 border-b text-center">
-            <h1 className="text-2xl font-bold">
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-7 border-b text-center">
+            <h1 className="text-3xl font-extrabold mt-2 text-gray-900">
               Hej {memberData.name ? memberData.name.split(' ')[0] : 'Medlem'}!
             </h1>
-            <p className="text-gray-500 text-sm mt-1">Her er dit medlemskab</p>
+            <p className="text-gray-600 text-sm mt-1">Her er dit medlemskab</p>
           </div>
 
           <div className="p-8 space-y-6">
