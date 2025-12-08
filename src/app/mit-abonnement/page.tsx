@@ -1,4 +1,4 @@
-// src/app/abonnement/page.tsx
+// src/app/mit-abonnement/page.tsx
 import { cookies } from 'next/headers';
 import pool from '@/lib/db';
 

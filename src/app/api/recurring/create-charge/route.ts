@@ -10,6 +10,31 @@ export async function POST(request: Request) {
   }
 
   const { agreementId, amount, description, due } = await request.json();
+
+  // Basic input validation to prevent bad requests to Vipps
+  if (!agreementId || typeof agreementId !== 'string') {
+    return NextResponse.json({ error: 'agreementId is required' }, { status: 400 });
+  }
+
+  if (typeof amount !== 'number' || amount <= 0) {
+    return NextResponse.json({ error: 'amount must be a positive number (øre)' }, { status: 400 });
+  }
+
+  if (!description || typeof description !== 'string') {
+    return NextResponse.json({ error: 'description is required' }, { status: 400 });
+  }
+
+  if (!due || typeof due !== 'string') {
+    return NextResponse.json({ error: 'due is required (YYYY-MM-DD)' }, { status: 400 });
+  }
+
+  // Enforce due date at least 2 days in future (Vipps requirement)
+  const dueDate = new Date(due + 'T00:00:00Z');
+  const minDue = new Date();
+  minDue.setUTCDate(minDue.getUTCDate() + 2);
+  if (Number.isNaN(dueDate.getTime()) || dueDate < minDue) {
+    return NextResponse.json({ error: 'due must be at least 2 days in the future (YYYY-MM-DD)' }, { status: 400 });
+  }
   
   try {
     const accessToken = await getVippsAccessToken();

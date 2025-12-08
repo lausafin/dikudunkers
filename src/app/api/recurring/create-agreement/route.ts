@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '@/lib/db';
 
 export async function POST(request: Request) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const accessToken = await getVippsAccessToken();
     const { 
