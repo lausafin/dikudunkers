@@ -57,18 +57,18 @@ export default async function SubscriptionPage() {
               <p className="text-3xl font-bold mt-1">{memberData.status}</p>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Type</span>
-                <span className="font-medium capitalize">{memberData.membership_type}</span>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-lg border bg-gray-50 p-4 text-center shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Type</p>
+                <p className="mt-1 text-lg font-bold capitalize text-gray-900">{memberData.membership_type}</p>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Pris</span>
-                <span className="font-medium">{price} DKK / halvår</span>
+              <div className="rounded-lg border bg-gray-50 p-4 text-center shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Pris</p>
+                <p className="mt-1 text-lg font-bold text-gray-900">{price} DKK / halvår</p>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Sidst betalt</span>
-                <span className="font-medium">{lastPayment}</span>
+              <div className="rounded-lg border bg-gray-50 p-4 text-center shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Sidst betalt</p>
+                <p className="mt-1 text-lg font-bold text-gray-900">{lastPayment}</p>
               </div>
             </div>
 
