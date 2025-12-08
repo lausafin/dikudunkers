@@ -76,15 +76,24 @@ export async function POST(request: Request) {
     const data = await response.json();
     const { agreementId } = data;
     
-    // Now, we link the temporary ID to the real agreementId in our database
+    // Now, we link the temporary ID AND the access token to the real agreementId
     await pool.query(
-      `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore, temp_redirect_id)
-       VALUES ($1, 'PENDING', $2, $3, $4)
-       ON CONFLICT (vipps_agreement_id) DO UPDATE SET temp_redirect_id = EXCLUDED.temp_redirect_id`,
-      [agreementId, membershipType, priceInOre, tempRedirectId]
+      `INSERT INTO subscriptions 
+        (vipps_agreement_id, status, membership_type, price_in_ore, temp_redirect_id, access_token)
+       VALUES ($1, 'PENDING', $2, $3, $4, $5)
+       ON CONFLICT (vipps_agreement_id) DO UPDATE SET 
+         temp_redirect_id = EXCLUDED.temp_redirect_id,
+         access_token = EXCLUDED.access_token`,
+      [
+        agreementId, 
+        membershipType, 
+        priceInOre, 
+        tempRedirectId, 
+        magicAccessToken
+      ]
     );
 
-    console.log(`[DIAGNOSTIC] Inserted PENDING record for agreementId: ${agreementId}`);
+    console.log(`Inserted PENDING record for agreementId: ${agreementId}`);
     // =====================================
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });
