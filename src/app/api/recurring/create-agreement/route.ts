@@ -20,8 +20,14 @@ export async function POST(request: Request) {
     }
 
     const getBaseUrl = () => {
+      // 1. Prioritize your manual setting (Stable URL)
+      if (process.env.BASE_URL) return process.env.BASE_URL;
+      
+      // 2. Fallback to Vercel's automatic URL (for previews)
       if (process.env.VERCEL_URL) return `https://` + process.env.VERCEL_URL;
-      return process.env.BASE_URL || 'http://localhost:3000';
+      
+      // 3. Localhost
+      return 'http://localhost:3000';
     };
     const baseUrl = getBaseUrl();
 
