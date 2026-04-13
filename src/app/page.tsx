@@ -27,27 +27,32 @@ export const revalidate = 60; // Cache the page for 60 seconds (ISR)
 async function getActiveMembers() {
   try {
     const result = await pool.query(`
-      SELECT m.name, s.membership_type, s.created_at
+      SELECT m.id, m.name, s.membership_type, s.created_at
       FROM members m
       JOIN subscriptions s ON m.id = s.member_id
       WHERE s.status = 'ACTIVE'
       ORDER BY s.created_at ASC
     `);
 
-    // Count occurrences of each first name
-    const firstNameCounts: Record<string, number> = {};
+    // Track unique members per first name
+    const firstNameMembers: Record<string, Set<number>> = {};
     const processedRows = result.rows.map(row => {
       const parts = row.name.trim().split(/\s+/);
       const firstName = parts[0];
-      firstNameCounts[firstName] = (firstNameCounts[firstName] || 0) + 1;
+      
+      if (!firstNameMembers[firstName]) {
+        firstNameMembers[firstName] = new Set();
+      }
+      firstNameMembers[firstName].add(row.id);
+
       return { ...row, parts, firstName };
     });
     
     return processedRows.map(row => {
       let displayName = row.firstName;
 
-      // If the first name is shared with others, add the last name's initial
-      if (firstNameCounts[row.firstName] > 1 && row.parts.length > 1) {
+      // If the first name is shared with other distinct members, add the last name's initial
+      if (firstNameMembers[row.firstName].size > 1 && row.parts.length > 1) {
         const last = row.parts[row.parts.length - 1];
         displayName = `${row.firstName} ${last[0]}.`;
       }
