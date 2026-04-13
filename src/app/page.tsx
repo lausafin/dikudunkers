@@ -27,27 +27,34 @@ export const revalidate = 60; // Cache the page for 60 seconds (ISR)
 async function getActiveMembers() {
   try {
     const result = await pool.query(`
-      SELECT m.name, s.membership_type, s.created_at
+      SELECT m.id, m.name, s.membership_type, s.created_at
       FROM members m
       JOIN subscriptions s ON m.id = s.member_id
       WHERE s.status = 'ACTIVE'
       ORDER BY s.created_at ASC
     `);
-    
-    return result.rows.map(row => {
-      const parts = row.name.trim().split(/\s+/);
-      let displayName = row.name;
 
-      if (parts.length > 1) {
-        const first = parts[0];
-        const last = parts[parts.length - 1];
-        const middles = parts.slice(1, -1);
-        
-        const rest = [...middles, last]
-          .map(part => `${part[0]}.`)
-          .join(' ');
-          
-        displayName = `${first} ${rest}`;
+    // Track unique members per first name
+    const firstNameMembers: Record<string, Set<number>> = {};
+    const processedRows = result.rows.map(row => {
+      const parts = row.name.trim().split(/\s+/);
+      const firstName = parts[0];
+      
+      if (!firstNameMembers[firstName]) {
+        firstNameMembers[firstName] = new Set();
+      }
+      firstNameMembers[firstName].add(row.id);
+
+      return { ...row, parts, firstName };
+    });
+    
+    return processedRows.map(row => {
+      let displayName = row.firstName;
+
+      // If the first name is shared with other distinct members, add the last name's initial
+      if (firstNameMembers[row.firstName].size > 1 && row.parts.length > 1) {
+        const last = row.parts[row.parts.length - 1];
+        displayName = `${row.firstName} ${last[0]}.`;
       }
 
       let formattedDate = '';
