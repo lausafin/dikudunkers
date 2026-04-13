@@ -27,11 +27,11 @@ export const revalidate = 60; // Cache the page for 60 seconds (ISR)
 async function getActiveMembers() {
   try {
     const result = await pool.query(`
-      SELECT m.name, s.membership_type, m.created_at
+      SELECT m.name, s.membership_type, s.created_at
       FROM members m
       JOIN subscriptions s ON m.id = s.member_id
       WHERE s.status = 'ACTIVE'
-      ORDER BY m.created_at ASC
+      ORDER BY s.created_at ASC
     `);
     
     return result.rows.map(row => {
