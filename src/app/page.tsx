@@ -33,21 +33,23 @@ async function getActiveMembers() {
       WHERE s.status = 'ACTIVE'
       ORDER BY s.created_at ASC
     `);
-    
-    return result.rows.map(row => {
-      const parts = row.name.trim().split(/\s+/);
-      let displayName = row.name;
 
-      if (parts.length > 1) {
-        const first = parts[0];
-        const last = parts[parts.length - 1];
-        const middles = parts.slice(1, -1);
-        
-        const rest = [...middles, last]
-          .map(part => `${part[0]}.`)
-          .join(' ');
-          
-        displayName = `${first} ${rest}`;
+    // Count occurrences of each first name
+    const firstNameCounts: Record<string, number> = {};
+    const processedRows = result.rows.map(row => {
+      const parts = row.name.trim().split(/\s+/);
+      const firstName = parts[0];
+      firstNameCounts[firstName] = (firstNameCounts[firstName] || 0) + 1;
+      return { ...row, parts, firstName };
+    });
+    
+    return processedRows.map(row => {
+      let displayName = row.firstName;
+
+      // If the first name is shared with others, add the last name's initial
+      if (firstNameCounts[row.firstName] > 1 && row.parts.length > 1) {
+        const last = row.parts[row.parts.length - 1];
+        displayName = `${row.firstName} ${last[0]}.`;
       }
 
       let formattedDate = '';
