@@ -27,21 +27,43 @@ export const revalidate = 60; // Cache the page for 60 seconds (ISR)
 async function getActiveMembers() {
   try {
     const result = await pool.query(`
+<<<<<<< HEAD
       SELECT m.name, s.membership_type, m.created_at
       FROM members m
       JOIN subscriptions s ON m.id = s.member_id
       WHERE s.status = 'ACTIVE'
       ORDER BY m.created_at ASC
+=======
+      SELECT m.name, s.membership_type, s.created_at
+      FROM members m
+      JOIN subscriptions s ON m.id = s.member_id
+      WHERE s.status = 'ACTIVE'
+      ORDER BY s.created_at ASC
+>>>>>>> dev
     `);
     
     return result.rows.map(row => {
       const parts = row.name.trim().split(/\s+/);
       let displayName = row.name;
+<<<<<<< HEAD
       if (parts.length > 1) {
         const last = parts.pop();
         if (last) {
           displayName = `${parts.join(' ')} ${last[0]}.`;
         }
+=======
+
+      if (parts.length > 1) {
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        const middles = parts.slice(1, -1);
+        
+        const rest = [...middles, last]
+          .map(part => `${part[0]}.`)
+          .join(' ');
+          
+        displayName = `${first} ${rest}`;
+>>>>>>> dev
       }
 
       let formattedDate = '';
