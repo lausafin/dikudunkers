@@ -3,136 +3,201 @@ import { NextResponse, NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { verifyVippsWebhook } from '@/lib/vipps-security';
 import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo';
-import getRedisClient from '@/lib/redis'; // <-- IMPORT the new client
+import getRedisClient from '@/lib/redis';
+
+// 1. Type Definitions for better safety
+interface VippsWebhookPayload {
+  eventType: string;
+  agreementId: string;
+  chargeId?: string;
+  amount?: number;     // Amount in øre
+  chargeType?: string; // e.g., "RECURRING" or "INITIAL"
+  transactionId?: string;
+}
 
 export async function POST(request: NextRequest) {
-  // INTENTIONALLY THROW AN ERROR TO SIMULATE A FAILURE
-  // throw new Error("SIMULATED WEBHOOK FAILURE FOR TESTING!");
-
   try {
     const rawBody = await request.text();
-    // === MODIFICATION HERE ===
-    // Reconstruct the path and query from the full URL to be safe.
+    
+    // 2. Security Verification
     const url = new URL(request.url);
     const pathAndQuery = url.pathname + url.search;
-    // =========================
+    
     const isVerified = await verifyVippsWebhook(rawBody, request.headers, pathAndQuery);
     if (!isVerified) {
-      console.warn('Webhook verification failed!');
-      return new Response('Unauthorized: Signature verification failed', { status: 401 });
+      console.warn('Webhook verification failed: Invalid signature.');
+      return new Response('Unauthorized', { status: 401 });
     }
-    
-    const payload = JSON.parse(rawBody);
-    const { eventType, agreementId, chargeId, chargeType, amount } = payload;
 
-    console.log(`Webhook received: ${eventType} for agreement ${agreementId}, charge ${chargeId}`);
+    const payload: VippsWebhookPayload = JSON.parse(rawBody);
+    const { eventType, agreementId } = payload;
 
-    // Get the subscription ID from our database based on the Vipps agreementId
-    // This is a common operation for multiple event types.
-    const getSubscriptionId = async (vippsAgreementId: string): Promise<number | null> => {
-        const subResult = await pool.query(
-          'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
-          [vippsAgreementId]
-        );
-        return subResult.rows[0]?.id || null;
-    };
+    console.log(`[Webhook] Received ${eventType} | Agreement: ${agreementId}`);
 
+    // 3. Event Routing
     switch (eventType) {
       case 'recurring.agreement-activated.v1':
-        await fetchAndSaveMemberData(agreementId, pool);
-        const redis = await getRedisClient(); // <-- Get the client on demand
-        await redis.set(`status:${agreementId}`, 'ACTIVE', { EX: 300 });
-        console.log(`[Redis NOTIFICATION] Set status flag for ${agreementId} to ACTIVE.`);
+        await handleAgreementActivated(agreementId);
         break;
-      
-      // --- CORRECT LOGIC FOR 'expired' (your original logic was perfect for this) ---
+
+      case 'recurring.agreement-stopped.v1':
+        await handleAgreementStopped(agreementId);
+        break;
+
       case 'recurring.agreement-expired.v1':
-        console.log(`Agreement ${agreementId} expired. Marking as EXPIRED in DB.`);
-        await pool.query(
-          // This query ONLY affects abandoned PENDING agreements.
-          "UPDATE subscriptions SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1 AND status = 'PENDING'",
-          [agreementId]
-        );
+        await handleAgreementExpired(agreementId);
         break;
 
-      // ==========================================================
-      // == NEW, ROBUST LOGIC FOR HANDLING CHARGE CAPTURE ==
-      // ==========================================================
       case 'recurring.charge-captured.v1':
-        // Step 1: Try to find the subscription.
-        const subResult = await pool.query(
-          'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
-          [agreementId]
-        );
-        
-        if (subResult.rows.length > 0) {
-          // HAPPY PATH: Agreement webhook arrived first. Just save the charge.
-          const subscriptionId = subResult.rows[0].id;
-          await pool.query(
-            `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
-             VALUES ($1, $2, 'CAPTURED', $3, $4)
-             ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED'`,
-            [subscriptionId, chargeId, amount, chargeType]
-          );
-          console.log(`Charge ${chargeId} (${chargeType}) was captured and saved to DB.`);
-        } else {
-          // RACE CONDITION PATH: Charge arrived first.
-          console.warn(`Race condition: Charge arrived before agreement for ${agreementId}. Triggering fulfillment...`);
-          
-          // Step 2: Run the fulfillment logic ourselves. This will create the member and subscription.
-          await fetchAndSaveMemberData(agreementId, pool);
+        await handleChargeCaptured(payload);
+        break;
 
-          // Step 3: Try to find the subscription AGAIN. It should exist now.
-          const secondSubResult = await pool.query('SELECT id FROM subscriptions WHERE vipps_agreement_id = $1', [agreementId]);
-          if (secondSubResult.rows.length > 0) {
-            const newSubscriptionId = secondSubResult.rows[0].id;
-            // Now that the subscription exists, save the charge record.
-            await pool.query(
-              `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
-               VALUES ($1, $2, 'CAPTURED', $3, $4) ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED'`,
-              [newSubscriptionId, chargeId, amount, chargeType]
-            );
-            console.log(`Charge ${chargeId} was captured and saved to DB after fulfillment.`);
-          } else {
-            // If it still fails, something is seriously wrong with the fulfillment logic.
-            console.error(`CRITICAL: Fulfillment failed for agreementId: ${agreementId}. Could not save charge record.`);
-          }
-        }
-        break;
-      // ==========================================================
       case 'recurring.charge-failed.v1':
-        console.warn(`Payment failed for agreement ${agreementId}, charge ${chargeId}. Suspending subscription.`);
-        
-        // Step A: Update the subscription status to 'SUSPENDED'
-        await pool.query(
-          "UPDATE subscriptions SET status = 'SUSPENDED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
-          [agreementId]
-        );
-        
-        // Step B: Record the failed charge for auditing purposes
-        const subscriptionIdForFailure = await getSubscriptionId(agreementId);
-        if (subscriptionIdForFailure) {
-          await pool.query(
-            `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
-             VALUES ($1, $2, 'FAILED', $3, $4)
-             ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'FAILED'`,
-            [subscriptionIdForFailure, chargeId, amount, chargeType]
-          );
-        } else {
-          console.error(`CRITICAL: Could not find subscription for agreementId: ${agreementId} during charge failure processing.`);
-        }
+        await handleChargeFailed(payload);
         break;
-      // ==========================================================
-      
+
+      // Log these for completeness, even if we don't take action yet
+      case 'recurring.charge-refunded.v1':
+      case 'recurring.charge-canceled.v1':
+        console.log(`[Webhook] Info: Charge event ${eventType} received. No action taken.`);
+        break;
+
       default:
-        console.warn(`Unhandled webhook eventType received: ${eventType}`);
+        console.warn(`[Webhook] Warning: Unhandled eventType: ${eventType}`);
         break;
     }
-    
+
     return NextResponse.json({ status: 'received' });
 
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[Webhook] Critical Error:", error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// ==============================================================================
+// Helper Functions (Keeps the main logic clean)
+// ==============================================================================
+
+async function handleAgreementActivated(agreementId: string) {
+  // Use existing logic to fetch user info from Vipps and create member/subscription
+  await fetchAndSaveMemberData(agreementId, pool);
+  
+  // Update Redis for the frontend polling
+  const redis = await getRedisClient();
+  await redis.set(`status:${agreementId}`, 'ACTIVE', { EX: 300 }); // 5 min cache
+  console.log(`[Redis] Set status for ${agreementId} to ACTIVE.`);
+}
+
+async function handleAgreementStopped(agreementId: string) {
+  await pool.query(
+    "UPDATE subscriptions SET status = 'STOPPED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1",
+    [agreementId]
+  );
+  
+  // Invalidate Redis cache immediately so user sees the stop
+  const redis = await getRedisClient();
+  await redis.del(`status:${agreementId}`);
+  console.log(`[DB] Agreement ${agreementId} marked as STOPPED.`);
+}
+
+async function handleAgreementExpired(agreementId: string) {
+  // Only expire pending agreements. Active agreements don't auto-expire via this webhook usually.
+  const result = await pool.query(
+    "UPDATE subscriptions SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1 AND status = 'PENDING'",
+    [agreementId]
+  );
+  if (result.rowCount && result.rowCount > 0) {
+    console.log(`[DB] Pending agreement ${agreementId} expired.`);
+  }
+}
+
+async function handleChargeCaptured(payload: VippsWebhookPayload) {
+  const { agreementId, chargeId, amount, chargeType } = payload;
+  if (!chargeId || amount === undefined) return;
+
+  // Helper to upsert charge
+  const saveCharge = async (subId: number) => {
+    await pool.query(
+      `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
+       VALUES ($1, $2, 'CAPTURED', $3, $4)
+       ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'CAPTURED', updated_at = CURRENT_TIMESTAMP`,
+      [subId, chargeId, amount, chargeType]
+    );
+  };
+
+  // 1. Try to find subscription
+  const subResult = await pool.query(
+    'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
+    [agreementId]
+  );
+
+  if (subResult.rows.length > 0) {
+    // Happy Path
+    await saveCharge(subResult.rows[0].id);
+    console.log(`[DB] Charge ${chargeId} captured for existing subscription.`);
+  } else {
+    // Race Condition Path
+    console.warn(`[Race Condition] Charge ${chargeId} arrived before agreement ${agreementId}. Triggering fulfillment...`);
+    
+    try {
+      // Force creation of member/subscription
+      await fetchAndSaveMemberData(agreementId, pool);
+      
+      // Try finding it again
+      const retryResult = await pool.query(
+        'SELECT id FROM subscriptions WHERE vipps_agreement_id = $1',
+        [agreementId]
+      );
+      
+      if (retryResult.rows.length > 0) {
+        await saveCharge(retryResult.rows[0].id);
+        console.log(`[DB] Charge ${chargeId} captured after forced fulfillment.`);
+      } else {
+        throw new Error(`Subscription still missing after fulfillment for ${agreementId}`);
+      }
+    } catch (err) {
+      console.error(`[Critical] Failed to resolve race condition for ${agreementId}:`, err);
+      // We do NOT throw here, so we return 200 OK to Vipps. 
+      // Retrying 500s won't fix a logic error, better to log and alert admin.
+    }
+  }
+}
+
+async function handleChargeFailed(payload: VippsWebhookPayload) {
+  const { agreementId, chargeId, amount, chargeType } = payload;
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Suspend the subscription
+    const subResult = await client.query(
+      "UPDATE subscriptions SET status = 'SUSPENDED', updated_at = CURRENT_TIMESTAMP WHERE vipps_agreement_id = $1 RETURNING id",
+      [agreementId]
+    );
+
+    const subscriptionId = subResult.rows[0]?.id;
+
+    if (subscriptionId) {
+      // 2. Log the failed charge
+      await client.query(
+        `INSERT INTO charges (subscription_id, vipps_charge_id, status, amount_in_ore, charge_type)
+         VALUES ($1, $2, 'FAILED', $3, $4)
+         ON CONFLICT (vipps_charge_id) DO UPDATE SET status = 'FAILED', updated_at = CURRENT_TIMESTAMP`,
+        [subscriptionId, chargeId || 'unknown', amount || 0, chargeType]
+      );
+      console.warn(`[DB] Agreement ${agreementId} suspended due to failed charge ${chargeId}.`);
+    } else {
+      console.error(`[DB] Could not find subscription ${agreementId} to suspend.`);
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(`[DB] Transaction failed processing charge failure for ${agreementId}`, error);
+    throw error;
+  } finally {
+    client.release();
   }
 }

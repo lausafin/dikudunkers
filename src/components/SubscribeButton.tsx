@@ -59,18 +59,22 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
 
   return (
     <div>
-      <div onClick={!isLoading ? handleSubscribe : undefined}>
-        {React.createElement('vipps-mobilepay-button', {
-          brand: 'mobilepay',
-          variant: 'primary',
-          language: 'dk',
-          verb: 'continue',
-          branded: 'true',
-          rounded: 'true',
-          stretched: 'true',
-          loading: isLoading.toString(),
-        })}
-      </div>
+      <div 
+        onClick={!isLoading ? handleSubscribe : undefined}
+        className={isLoading ? 'pointer-events-none opacity-80' : 'cursor-pointer'}
+        dangerouslySetInnerHTML={{
+          __html: `<vipps-mobilepay-button 
+            brand="mobilepay" 
+            variant="primary" 
+            language="dk" 
+            verb="continue" 
+            branded="true" 
+            rounded="true" 
+            stretched="true" 
+            loading="${isLoading.toString()}"
+          ></vipps-mobilepay-button>`
+        }}
+      />
       {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
     </div>
   );

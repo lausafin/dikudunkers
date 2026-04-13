@@ -5,8 +5,19 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/cleanup-pending",
+      "path": "/api/cron/cleanup-and-keepalive",
       "schedule": "0 2 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|webp)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }

@@ -7,7 +7,7 @@ export default function SalgsbetingelserPage() {
 
       <h2>Betaling</h2>
       <p>
-        DIKU Dunkers modtager online betalinger med [Indsæt korttyper, f.eks. Dankort, Visa/Dankort, Visa, Mastercard] og MobilePay.
+        DIKU Dunkers modtager online betalinger med MobilePay.
         Betaling vil først blive trukket på din konto, når den fysiske vare afsendes eller det virtuelle produkt er oprettet, med mindre andet er aftalt.
       </p>
 
@@ -24,7 +24,7 @@ export default function SalgsbetingelserPage() {
       <h2>Klagehåndtering</h2>
       <p>
         Hvis du har en klage over et produkt, købt i vores webshop, kan der sendes en klage til:
-        DIKU Dunkers, Universitetsparken 1, 8000 2100 København Ø, email: dikudunkers@di.ku.dk.
+        DIKU Dunkers, Universitetsparken 1, 2100 København Ø, email: dikudunkers@di.ku.dk.
         Hvis det ikke lykkes os at finde en løsning, kan du sende en klage til Center for Klageløsning, Nævnenes Hus, Toldboden 2, 8800 Viborg.
       </p>
     </div>

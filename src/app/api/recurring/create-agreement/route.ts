@@ -20,8 +20,14 @@ export async function POST(request: Request) {
     }
 
     const getBaseUrl = () => {
+      // 1. Prioritize your manual setting (Stable URL)
+      if (process.env.BASE_URL) return process.env.BASE_URL;
+      
+      // 2. Fallback to Vercel's automatic URL (for previews)
       if (process.env.VERCEL_URL) return `https://` + process.env.VERCEL_URL;
-      return process.env.BASE_URL || 'http://localhost:3000';
+      
+      // 3. Localhost
+      return 'http://localhost:3000';
     };
     const baseUrl = getBaseUrl();
 
@@ -31,6 +37,7 @@ export async function POST(request: Request) {
     // We create a temporary, unique ID to pass to Vipps.
     // We will use this ID to look up the real agreementId later.
     const tempRedirectId = uuidv4();
+    const magicAccessToken = uuidv4();
     // ==========================================================
 
     const agreementPayload = {
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
       },
       pricing: { amount: priceInOre, currency: "DKK" },
       merchantRedirectUrl: `${baseUrl}/subscription-success?temp_id=${tempRedirectId}`,
-      merchantAgreementUrl: `${baseUrl}/my-account/subscription`,
+      merchantAgreementUrl: `${baseUrl}/api/auth/magic-login/${magicAccessToken}`,
       // phoneNumber-feltet er nu helt fjernet fra payloaden til Vipps
       productName: productName,
       scope: "name email phoneNumber address birthDate"
@@ -69,15 +76,24 @@ export async function POST(request: Request) {
     const data = await response.json();
     const { agreementId } = data;
     
-    // Now, we link the temporary ID to the real agreementId in our database
+    // Now, we link the temporary ID AND the access token to the real agreementId
     await pool.query(
-      `INSERT INTO subscriptions (vipps_agreement_id, status, membership_type, price_in_ore, temp_redirect_id)
-       VALUES ($1, 'PENDING', $2, $3, $4)
-       ON CONFLICT (vipps_agreement_id) DO UPDATE SET temp_redirect_id = EXCLUDED.temp_redirect_id`,
-      [agreementId, membershipType, priceInOre, tempRedirectId]
+      `INSERT INTO subscriptions 
+        (vipps_agreement_id, status, membership_type, price_in_ore, temp_redirect_id, access_token)
+       VALUES ($1, 'PENDING', $2, $3, $4, $5)
+       ON CONFLICT (vipps_agreement_id) DO UPDATE SET 
+         temp_redirect_id = EXCLUDED.temp_redirect_id,
+         access_token = EXCLUDED.access_token`,
+      [
+        agreementId, 
+        membershipType, 
+        priceInOre, 
+        tempRedirectId, 
+        magicAccessToken
+      ]
     );
 
-    console.log(`[DIAGNOSTIC] Inserted PENDING record for agreementId: ${agreementId}`);
+    console.log(`Inserted PENDING record for agreementId: ${agreementId}`);
     // =====================================
     
     return NextResponse.json({ vippsConfirmationUrl: data.vippsConfirmationUrl, agreementId: data.agreementId });

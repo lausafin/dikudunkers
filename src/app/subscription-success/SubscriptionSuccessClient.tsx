@@ -1,21 +1,10 @@
-// src/app/subscription-success/SubscriptionSuccessClient.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation'; // <-- STEP 1: Import the necessary hook
-import LoadingSpinner from '@/components/LoadingSpinner'; // <-- Importer den delte komponent
+import { useSearchParams } from 'next/navigation';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
-// --- UI Components (These are perfectly structured) ---
-const LoadingState = () => (
-  <>
-    <div 
-      style={{ borderTopColor: 'transparent' }}
-      className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 mb-4"
-    ></div>
-    <h1 className="text-2xl font-bold">Bekræfter din tilmelding...</h1>
-    <p>Dette tager kun et øjeblik.</p>
-  </>
-);
+// --- UI Components ---
 
 const SuccessState = () => (
   <>
@@ -27,69 +16,110 @@ const SuccessState = () => (
 
 const FailureState = () => (
   <>
-    <h1 className="text-2xl font-bold text-red-600">Noget gik galt</h1>
-    <p>Vi kunne desværre ikke bekræfte dit medlemskab lige nu.</p>
-    <p>Tjek venligst din MobilePay-app for status, eller kontakt support hvis problemet vedvarer.</p>
+    <h1 className="text-2xl font-bold text-red-600">Betaling fejlet</h1>
+    <p>Vi kunne ikke oprette dit medlemskab.</p>
+    <p>Prøv igen, eller kontakt support hvis problemet vedvarer.</p>
   </>
 );
 
+const CancelState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-yellow-600">Betaling afbrudt</h1>
+    <p>Du afbrød oprettelsen i MobilePay.</p>
+    <p className="mt-2">Du kan lukke denne fane eller gå tilbage for at prøve igen.</p>
+  </>
+);
 
-// --- The Main, Corrected Component ---
+const TimeoutState = () => (
+  <>
+    <h1 className="text-2xl font-bold text-orange-600">Afventer bekræftelse</h1>
+    <p>Vi har ikke modtaget den endelige bekræftelse fra MobilePay endnu.</p>
+    <p className="mt-4 font-semibold">Tjek din MobilePay-app:</p>
+    <ul className="list-disc list-inside text-left mt-2 mb-4 max-w-md mx-auto">
+      <li>Hvis betalingen er gået igennem der, er du medlem.</li>
+      <li>Hvis betalingen ikke ses i appen, bedes du prøve igen.</li>
+    </ul>
+  </>
+);
+
+// --- Main Component ---
 export default function SubscriptionSuccessClient() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [finalStatus, setFinalStatus] = useState<'ACTIVE' | 'FAILED'>('FAILED');
+  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT' | 'CANCELLED'>('LOADING');
   
-  // STEP 2: Use the hook to get access to URL parameters
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // STEP 3: Read the temp_id from the URL. This is the reliable handoff.
+     // 1. INSTANT CHECK: URL Parameters
+    // MobilePay usually adds ?error=access_denied or ?error=user_cancel
+    const error = searchParams.get('error');
+    const errorCode = searchParams.get('error_code');
+    
+    // Debugging: See exactly what Vipps sends when you cancel
+    if (error || errorCode) {
+      console.log("Vipps Redirect Params:", { error, errorCode });
+    }
+
+    if (error === 'access_denied' || error === 'user_cancel' || errorCode === '400') {
+      setStatus('CANCELLED');
+      return; // Stop here, do not poll
+    }
+
     const tempId = searchParams.get('temp_id');
 
     if (!tempId) {
-      console.error("CRITICAL: No temp_id found in URL. Cannot check status.");
-      setIsLoading(false);
-      setFinalStatus('FAILED');
+      console.error("CRITICAL: No temp_id found in URL.");
+      setStatus('FAILED');
       return;
     }
 
     const pollStatus = async () => {
       try {
         const cacheBuster = `t=${Date.now()}`;
-        // STEP 4: Poll the correct endpoint using the tempId
         const response = await fetch(`/api/recurring/get-status-by-temp-id?temp_id=${tempId}&${cacheBuster}`);
         
-        if (!response.ok) return; // Wait for the next poll
+        if (!response.ok) return; 
 
         const data = await response.json();
 
+        // 2. LOGIC FIX: Check specific statuses first
         if (data.status === 'ACTIVE') {
-          setFinalStatus('ACTIVE');
-          setIsLoading(false);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
-        } else if (['STOPPED', 'EXPIRED'].includes(data.status)) {
-          setFinalStatus('FAILED');
-          setIsLoading(false);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
+          setStatus('ACTIVE');
+        } 
+        else if (data.status === 'STOPPED') {
+            // If the DB says STOPPED this early, the user likely cancelled immediately
+            setStatus('CANCELLED');
         }
-        // If 'PENDING', do nothing and let the poller continue.
-
+        else if (['EXPIRED', 'FAILED'].includes(data.status)) {
+          setStatus('FAILED');
+        } 
+        // If 'PENDING', do nothing and wait
       } catch (error) {
         console.warn("Polling request failed, will retry:", error);
       }
     };
 
-    const intervalId = setInterval(pollStatus, 2000);
+    // Poll every 2 seconds
+    const intervalId = setInterval(() => {
+      setStatus((prev) => {
+        // Stop polling if we reached a final state
+        if (prev !== 'LOADING') {
+            clearInterval(intervalId);
+            return prev;
+        }
+        pollStatus();
+        return 'LOADING';
+      });
+    }, 2000);
 
+    // Timeout after 30 seconds
     const timeoutId = setTimeout(() => {
-      clearInterval(intervalId);
-      if (isLoading) {
-        setFinalStatus('ACTIVE'); // Optimistic fallback
-        setIsLoading(false);
-      }
-    }, 20000);
+      setStatus((prev) => {
+        if (prev === 'LOADING') {
+          return 'TIMEOUT';
+        }
+        return prev;
+      });
+    }, 30000); 
 
     pollStatus(); // Initial poll
 
@@ -97,13 +127,15 @@ export default function SubscriptionSuccessClient() {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-    // STEP 5: Use an empty dependency array to ensure this runs only ONCE on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   return (
-    <div className="flex flex-col items-center justify-center text-center">
-      {isLoading ? <LoadingSpinner /> : (finalStatus === 'ACTIVE' ? <SuccessState /> : <FailureState />)}
+    <div className="flex flex-col items-center justify-center text-center space-y-4">
+      {status === 'LOADING' && <LoadingSpinner />}
+      {status === 'ACTIVE' && <SuccessState />}
+      {status === 'FAILED' && <FailureState />}
+      {status === 'CANCELLED' && <CancelState />}
+      {status === 'TIMEOUT' && <TimeoutState />}
     </div>
   );
 }
