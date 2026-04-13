@@ -37,11 +37,17 @@ async function getActiveMembers() {
     return result.rows.map(row => {
       const parts = row.name.trim().split(/\s+/);
       let displayName = row.name;
+
       if (parts.length > 1) {
-        const last = parts.pop();
-        if (last) {
-          displayName = `${parts.join(' ')} ${last[0]}.`;
-        }
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        const middles = parts.slice(1, -1);
+        
+        const rest = [...middles, last]
+          .map(part => `${part[0]}.`)
+          .join(' ');
+          
+        displayName = `${first} ${rest}`;
       }
 
       let formattedDate = '';
