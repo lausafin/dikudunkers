@@ -10,14 +10,14 @@ const memberships = {
     priceInOre: 15000,
     displayName: '150 DKK / halvår',
     productName: 'Haladgang',
-    description: 'Adgang til træning og faciliteter. Perfekt for motionister.'
+    description: 'Adgang til ugentlig indendørstræning og faciliteter.'
   },
   kamphold: {
     type: 'Kamphold',
     priceInOre: 35000,
     displayName: '350 DKK / halvår',
     productName: 'Kamphold',
-    description: 'Deltagelse i kampe, stævner og fuld adgang til træning.'
+    description: 'Deltagelse i DBBF-kampe samt fuld adgang til træning.'
   }
 } as const;
 
