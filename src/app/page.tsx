@@ -91,7 +91,7 @@ export default async function HomePage() {
       </div>
 
       <div className="container mx-auto relative z-10 py-12">
-        <h1 className="text-4xl font-bold mb-4 text-center dark:text-gray-100 drop-shadow-sm">Velkommen til DIKU Dunkers!</h1>
+        <h1 className="text-4xl font-bold mb-4 text-center dark:text-gray-100 drop-shadow-sm">DIKU Dunkers</h1>
         <p className="mb-12 text-center text-lg text-gray-700 dark:text-gray-300">Vælg dit medlemskab for at komme i gang.</p>
         
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-20">
