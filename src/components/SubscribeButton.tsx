@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 
 // ... (Dine type-definitioner er uændrede)
 type MembershipDetails = {
-  type: 'Haladgang' | 'Kamphold';
+  type: 'Træning' | 'Kamphold';
   priceInOre: number;
   displayName: string;
   productName: string;

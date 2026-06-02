@@ -5,12 +5,12 @@ import { Outfit } from 'next/font/google';
 const outfit = Outfit({ subsets: ['latin'] });
 
 const memberships = {
-  haladgang: {
-    type: 'Haladgang',
+  traening: {
+    type: 'Træning',
     priceInOre: 15000,
     displayName: '150 DKK / halvår',
-    productName: 'Haladgang',
-    description: 'Adgang til ugentlig indendørstræning og faciliteter.'
+    productName: 'Træning',
+    description: 'Adgang til ugentlig indendørstræning.'
   },
   kamphold: {
     type: 'Kamphold',
@@ -95,12 +95,12 @@ export default async function HomePage() {
         <p className="mb-12 text-center text-lg text-gray-700 dark:text-gray-300">Vælg dit medlemskab for at komme i gang.</p>
         
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-20">
-          {/* Haladgang Membership Card */}
+          {/* Træning Membership Card */}
           <div className="border border-white/50 dark:border-white/10 rounded-2xl p-8 max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-            <h2 className="text-2xl font-semibold dark:text-gray-100">Haladgang</h2>
-            <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.haladgang.displayName}</p>
-            <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.haladgang.description}</p>
-            <SubscribeButton membership={memberships.haladgang} />
+            <h2 className="text-2xl font-semibold dark:text-gray-100">Træning</h2>
+            <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.traening.displayName}</p>
+            <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.traening.description}</p>
+            <SubscribeButton membership={memberships.traening} />
           </div>
 
           {/* Kamphold Membership Card */}
