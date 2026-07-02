@@ -112,8 +112,24 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto w-full">
-          <h2 className="text-2xl font-bold mb-6 text-center dark:text-gray-100 drop-shadow-sm">Aktive Medlemmer</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto w-full">
+          <div className="w-full">
+            <h2 className="text-2xl font-bold mb-6 text-center dark:text-gray-100 drop-shadow-sm">Kalender</h2>
+            <div className="border border-white/50 dark:border-white/10 rounded-2xl p-4 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+              <iframe
+                src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Europe%2FCopenhagen&mode=AGENDA&hl=da&showNav=0&showDate=0&showTabs=0&showCalendars=0&showPrint=0&showTz=0&src=bGF1QGRpa3VkdW5rZXJzLmRr&color=%23039be5"
+                title="DIKU Dunkers Kalender"
+                className="w-full rounded-xl dark:[filter:invert(0.9)_hue-rotate(180deg)]"
+                style={{ borderWidth: 0 }}
+                height={600}
+                frameBorder={0}
+                scrolling="no"
+              />
+            </div>
+          </div>
+
+          <div className="w-full">
+            <h2 className="text-2xl font-bold mb-6 text-center dark:text-gray-100 drop-shadow-sm">Aktive Medlemmer</h2>
           {activeMembers.length > 0 ? (
             <div className="border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
               <div className="overflow-x-auto">
@@ -143,6 +159,7 @@ export default async function HomePage() {
               <p className="text-lg font-medium">Der er ingen aktive medlemmer at vise endnu.</p>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
