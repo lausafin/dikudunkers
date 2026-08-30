@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/cleanup-and-keepalive",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/update-membership-prices",
+      "schedule": "0 1 * * *"
     }
   ],
   "headers": [

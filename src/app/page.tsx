@@ -7,15 +7,15 @@ const outfit = Outfit({ subsets: ['latin'] });
 const memberships = {
   traening: {
     type: 'Træning',
-    priceInOre: 15000,
-    displayName: '150 DKK / halvår',
+    priceInOre: 25000,
+    displayName: '250 DKK / halvår',
     productName: 'Træning',
     description: 'Adgang til ugentlig indendørstræning.'
   },
   kamphold: {
     type: 'Kamphold',
-    priceInOre: 35000,
-    displayName: '350 DKK / halvår',
+    priceInOre: 45000,
+    displayName: '450 DKK / halvår',
     productName: 'Kamphold',
     description: 'Deltagelse i DBBF-kampe samt fuld adgang til træning.'
   }
