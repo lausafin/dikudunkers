@@ -3,65 +3,68 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import WelcomeSuccess, { type WelcomeDetails } from '@/components/WelcomeSuccess';
 
-// --- UI Components ---
+type Status = 'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT' | 'CANCELLED';
 
-const SuccessState = () => (
-  <>
-    <h1 className="text-2xl font-bold text-green-600">Velkommen til DIKU Dunkers!</h1>
-    <p>Dit medlemskab er nu aktivt og bekræftet.</p>
-    <p>Du kan se og administrere din aftale i din MobilePay-app.</p>
-  </>
-);
+function StatusCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full max-w-md rounded-2xl border border-white/50 bg-white/60 p-8 text-center shadow-[0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/60 dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+      {children}
+    </div>
+  );
+}
 
 const FailureState = () => (
-  <>
-    <h1 className="text-2xl font-bold text-red-600">Betaling fejlet</h1>
-    <p>Vi kunne ikke oprette dit medlemskab.</p>
-    <p>Prøv igen, eller kontakt support hvis problemet vedvarer.</p>
-  </>
+  <StatusCard>
+    <h1 className="text-2xl font-bold text-red-600 dark:text-red-400">Betaling fejlet</h1>
+    <p className="mt-2 text-gray-700 dark:text-gray-300">Vi kunne ikke oprette dit medlemskab.</p>
+    <p className="mt-1 text-gray-600 dark:text-gray-400">Prøv igen, eller kontakt support hvis problemet vedvarer.</p>
+  </StatusCard>
 );
 
 const CancelState = () => (
-  <>
-    <h1 className="text-2xl font-bold text-yellow-600">Betaling afbrudt</h1>
-    <p>Du afbrød oprettelsen i MobilePay.</p>
-    <p className="mt-2">Du kan lukke denne fane eller gå tilbage for at prøve igen.</p>
-  </>
+  <StatusCard>
+    <h1 className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">Betaling afbrudt</h1>
+    <p className="mt-2 text-gray-700 dark:text-gray-300">Du afbrød oprettelsen i MobilePay.</p>
+    <p className="mt-2 text-gray-600 dark:text-gray-400">Du kan lukke denne fane eller gå tilbage for at prøve igen.</p>
+  </StatusCard>
 );
 
 const TimeoutState = () => (
-  <>
-    <h1 className="text-2xl font-bold text-orange-600">Afventer bekræftelse</h1>
-    <p>Vi har ikke modtaget den endelige bekræftelse fra MobilePay endnu.</p>
-    <p className="mt-4 font-semibold">Tjek din MobilePay-app:</p>
-    <ul className="list-disc list-inside text-left mt-2 mb-4 max-w-md mx-auto">
+  <StatusCard>
+    <h1 className="text-2xl font-bold text-orange-600 dark:text-orange-400">Afventer bekræftelse</h1>
+    <p className="mt-2 text-gray-700 dark:text-gray-300">Vi har ikke modtaget den endelige bekræftelse fra MobilePay endnu.</p>
+    <p className="mt-4 font-semibold text-gray-800 dark:text-gray-200">Tjek din MobilePay-app:</p>
+    <ul className="mx-auto mt-2 mb-4 max-w-md list-disc list-inside text-left text-gray-600 dark:text-gray-400">
       <li>Hvis betalingen er gået igennem der, er du medlem.</li>
       <li>Hvis betalingen ikke ses i appen, bedes du prøve igen.</li>
     </ul>
-  </>
+  </StatusCard>
 );
 
-// --- Main Component ---
 export default function SubscriptionSuccessClient() {
-  const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'FAILED' | 'TIMEOUT' | 'CANCELLED'>('LOADING');
-  
+  const [status, setStatus] = useState<Status>('LOADING');
+  const [welcome, setWelcome] = useState<WelcomeDetails>({});
   const searchParams = useSearchParams();
 
   useEffect(() => {
-     // 1. INSTANT CHECK: URL Parameters
-    // MobilePay usually adds ?error=access_denied or ?error=user_cancel
+    if (process.env.NODE_ENV === 'development' && searchParams.get('preview') === 'welcome') {
+      setWelcome({ firstName: 'Alex', membershipType: 'Kamphold' });
+      setStatus('ACTIVE');
+      return;
+    }
+
     const error = searchParams.get('error');
     const errorCode = searchParams.get('error_code');
-    
-    // Debugging: See exactly what Vipps sends when you cancel
+
     if (error || errorCode) {
       console.log("Vipps Redirect Params:", { error, errorCode });
     }
 
     if (error === 'access_denied' || error === 'user_cancel' || errorCode === '400') {
       setStatus('CANCELLED');
-      return; // Stop here, do not poll
+      return;
     }
 
     const tempId = searchParams.get('temp_id');
@@ -76,32 +79,31 @@ export default function SubscriptionSuccessClient() {
       try {
         const cacheBuster = `t=${Date.now()}`;
         const response = await fetch(`/api/recurring/get-status-by-temp-id?temp_id=${tempId}&${cacheBuster}`);
-        
-        if (!response.ok) return; 
+
+        if (!response.ok) return;
 
         const data = await response.json();
 
-        // 2. LOGIC FIX: Check specific statuses first
         if (data.status === 'ACTIVE') {
+          setWelcome({
+            firstName: typeof data.firstName === 'string' ? data.firstName : undefined,
+            membershipType: typeof data.membershipType === 'string' ? data.membershipType : undefined,
+          });
           setStatus('ACTIVE');
-        } 
+        }
         else if (data.status === 'STOPPED') {
-            // If the DB says STOPPED this early, the user likely cancelled immediately
             setStatus('CANCELLED');
         }
         else if (['EXPIRED', 'FAILED'].includes(data.status)) {
           setStatus('FAILED');
-        } 
-        // If 'PENDING', do nothing and wait
+        }
       } catch (error) {
         console.warn("Polling request failed, will retry:", error);
       }
     };
 
-    // Poll every 2 seconds
     const intervalId = setInterval(() => {
       setStatus((prev) => {
-        // Stop polling if we reached a final state
         if (prev !== 'LOADING') {
             clearInterval(intervalId);
             return prev;
@@ -111,7 +113,6 @@ export default function SubscriptionSuccessClient() {
       });
     }, 2000);
 
-    // Timeout after 30 seconds
     const timeoutId = setTimeout(() => {
       setStatus((prev) => {
         if (prev === 'LOADING') {
@@ -119,9 +120,9 @@ export default function SubscriptionSuccessClient() {
         }
         return prev;
       });
-    }, 30000); 
+    }, 30000);
 
-    pollStatus(); // Initial poll
+    pollStatus();
 
     return () => {
       clearInterval(intervalId);
@@ -130,9 +131,13 @@ export default function SubscriptionSuccessClient() {
   }, [searchParams]);
 
   return (
-    <div className="flex flex-col items-center justify-center text-center space-y-4">
-      {status === 'LOADING' && <LoadingSpinner />}
-      {status === 'ACTIVE' && <SuccessState />}
+    <div className="flex w-full flex-col items-center justify-center px-4">
+      {status === 'LOADING' && (
+        <StatusCard>
+          <LoadingSpinner />
+        </StatusCard>
+      )}
+      {status === 'ACTIVE' && <WelcomeSuccess {...welcome} />}
       {status === 'FAILED' && <FailureState />}
       {status === 'CANCELLED' && <CancelState />}
       {status === 'TIMEOUT' && <TimeoutState />}
