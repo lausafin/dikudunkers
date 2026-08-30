@@ -1,3 +1,6 @@
+import BackgroundBlobs from '@/components/BackgroundBlobs';
+import CommunityLinks from '@/components/CommunityLinks';
+import NewSeasonBanner from '@/components/NewSeasonBanner';
 import SubscribeButton from '@/components/SubscribeButton';
 import pool from '@/lib/db';
 import { MEMBERSHIP_DISPLAY } from '@/lib/memberships';
@@ -69,12 +72,7 @@ export default async function HomePage() {
 
   return (
     <div className="relative min-h-screen">
-      {/* Decorative gradient background blobs to make the glass effect pop */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full bg-orange-400/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute top-[30%] -right-[10%] w-[50%] h-[50%] rounded-full bg-emerald-400/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[60%] rounded-full bg-blue-400/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-      </div>
+      <BackgroundBlobs />
 
       <div className="container mx-auto relative z-10 py-12">
         <h1 className="text-4xl font-bold mb-4 text-center dark:text-gray-100 drop-shadow-sm">DIKU Dunkers</h1>
@@ -82,21 +80,29 @@ export default async function HomePage() {
         
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-20">
           {/* Træning Membership Card */}
-          <div className="border border-white/50 dark:border-white/10 rounded-2xl p-8 max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-            <h2 className="text-2xl font-semibold dark:text-gray-100">Træning</h2>
-            <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.traening.displayName}</p>
-            <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.traening.description}</p>
-            <SubscribeButton membership={memberships.traening} />
+          <div className="border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+            <NewSeasonBanner accent="emerald" />
+            <div className="p-8 flex flex-col flex-grow">
+              <h2 className="text-2xl font-semibold dark:text-gray-100">Træning</h2>
+              <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.traening.displayName}</p>
+              <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.traening.description}</p>
+              <SubscribeButton membership={memberships.traening} />
+            </div>
           </div>
 
           {/* Kamphold Membership Card */}
-          <div className="border border-white/50 dark:border-white/10 rounded-2xl p-8 max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-            <h2 className="text-2xl font-semibold dark:text-gray-100">Kamphold</h2>
-            <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.kamphold.displayName}</p>
-            <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.kamphold.description}</p>
-            <SubscribeButton membership={memberships.kamphold} />
+          <div className="border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+            <NewSeasonBanner accent="orange" />
+            <div className="p-8 flex flex-col flex-grow">
+              <h2 className="text-2xl font-semibold dark:text-gray-100">Kamphold</h2>
+              <p className="text-xl font-bold my-2 dark:text-gray-200">{memberships.kamphold.displayName}</p>
+              <p className="mb-6 flex-grow text-gray-600 dark:text-gray-400">{memberships.kamphold.description}</p>
+              <SubscribeButton membership={memberships.kamphold} />
+            </div>
           </div>
         </div>
+
+        <CommunityLinks />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto w-full">
           <div className="w-full">

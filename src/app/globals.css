@@ -21,3 +21,83 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes new-season-shimmer {
+  0% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+
+.new-season-shimmer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.new-season-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 38%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.38),
+    transparent
+  );
+  animation: new-season-shimmer 3.6s ease-in-out infinite;
+}
+
+@keyframes welcome-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes welcome-ball-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-42px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+  75% {
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-card {
+  animation: welcome-card-in 0.55s ease-out both;
+}
+
+.welcome-ball {
+  animation: welcome-ball-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-season-shimmer::after {
+    animation: none;
+  }
+
+  .welcome-card,
+  .welcome-ball {
+    animation: none;
+  }
+}
