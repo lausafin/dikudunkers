@@ -1,25 +1,11 @@
 import SubscribeButton from '@/components/SubscribeButton';
 import pool from '@/lib/db';
+import { MEMBERSHIP_DISPLAY } from '@/lib/memberships';
 import { Outfit } from 'next/font/google';
 
 const outfit = Outfit({ subsets: ['latin'] });
 
-const memberships = {
-  traening: {
-    type: 'Træning',
-    priceInOre: 25000,
-    displayName: '250 DKK / halvår',
-    productName: 'Træning',
-    description: 'Adgang til ugentlig indendørstræning.'
-  },
-  kamphold: {
-    type: 'Kamphold',
-    priceInOre: 45000,
-    displayName: '450 DKK / halvår',
-    productName: 'Kamphold',
-    description: 'Deltagelse i DBBF-kampe samt fuld adgang til træning.'
-  }
-} as const;
+const memberships = MEMBERSHIP_DISPLAY;
 
 export const dynamic = 'force-dynamic'; // Ensures this page is rendered dynamically
 export const revalidate = 60; // Cache the page for 60 seconds (ISR)

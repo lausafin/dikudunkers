@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 
 // ... (Dine type-definitioner er uændrede)
 type MembershipDetails = {
-  type: 'Træning' | 'Kamphold';
+  type: 'Træning' | 'Kamphold' | 'KampholdLegacy';
   priceInOre: number;
   displayName: string;
   productName: string;
@@ -35,10 +35,8 @@ export default function SubscribeButton({ membership }: SubscribeButtonProps) {
       const response = await fetch('/api/recurring/create-agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           membershipType: membership.type,
-          priceInOre: membership.priceInOre,
-          productName: membership.productName,
         }),
       });
 

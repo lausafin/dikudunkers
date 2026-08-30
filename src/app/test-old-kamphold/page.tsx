@@ -1,17 +1,10 @@
 import SubscribeButton from '@/components/SubscribeButton';
+import { isVippsTestEnv, KAMPHOLD_LEGACY_TEST } from '@/lib/memberships';
 
 export const dynamic = 'force-dynamic';
 
-const oldKamphold = {
-  type: 'Kamphold' as const,
-  priceInOre: 35000,
-  displayName: '350 DKK / halvår',
-  productName: 'Kamphold',
-};
-
 export default function TestOldKampholdPage() {
-  const vippsHost = process.env.VIPPS_API_BASE_URL ?? '';
-  const isTestVipps = vippsHost.includes('apitest');
+  const isTestVipps = isVippsTestEnv();
 
   if (!isTestVipps) {
     return (
@@ -32,11 +25,11 @@ export default function TestOldKampholdPage() {
       <h1 className="mb-8 text-center text-3xl font-bold">Kamphold 350 kr</h1>
       <div className="flex flex-col rounded-2xl border border-white/50 bg-white/60 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/60">
         <h2 className="text-2xl font-semibold dark:text-gray-100">Kamphold</h2>
-        <p className="my-2 text-xl font-bold dark:text-gray-200">{oldKamphold.displayName}</p>
+        <p className="my-2 text-xl font-bold dark:text-gray-200">{KAMPHOLD_LEGACY_TEST.displayName}</p>
         <p className="mb-6 text-gray-600 dark:text-gray-400">
           Testaftale til 350 kr, så cron-jobbet kan opdatere den til 450 kr.
         </p>
-        <SubscribeButton membership={oldKamphold} />
+        <SubscribeButton membership={KAMPHOLD_LEGACY_TEST} />
       </div>
     </div>
   );

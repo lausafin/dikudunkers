@@ -3,14 +3,13 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
+import { requireBearerSecret } from '@/lib/require-bearer-secret';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const unauthorized = requireBearerSecret(request, process.env.CRON_SECRET);
+  if (unauthorized) return unauthorized;
 
   console.log(`Daily billing check started: ${new Date().toISOString()}`);
 

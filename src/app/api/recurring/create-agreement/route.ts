@@ -3,21 +3,19 @@ import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '@/lib/db';
+import { resolveMembershipForAgreement } from '@/lib/memberships';
 
 export async function POST(request: Request) {
   try {
-    const accessToken = await getVippsAccessToken();
-    const { 
-      // phoneNumber er fjernet herfra
-      membershipType, 
-      priceInOre, 
-      productName 
-    } = await request.json();
+    const body = await request.json();
+    const membership = resolveMembershipForAgreement(body?.membershipType);
 
-    // Opdateret validering
-    if (!membershipType || !priceInOre || !productName) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!membership) {
+      return NextResponse.json({ error: 'Unknown membership type' }, { status: 400 });
     }
+
+    const { membershipType, priceInOre, productName } = membership;
+    const accessToken = await getVippsAccessToken();
 
     const getBaseUrl = () => {
       // 1. Prioritize your manual setting (Stable URL)

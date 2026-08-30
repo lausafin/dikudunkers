@@ -2,14 +2,13 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import getRedisClient from '@/lib/redis';
+import { requireBearerSecret } from '@/lib/require-bearer-secret';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const unauthorized = requireBearerSecret(request, process.env.CRON_SECRET);
+  if (unauthorized) return unauthorized;
 
   const results = {
     db_cleanup: 'pending',

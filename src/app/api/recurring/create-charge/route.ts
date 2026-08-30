@@ -2,12 +2,11 @@
 import { NextResponse } from 'next/server';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
+import { requireBearerSecret } from '@/lib/require-bearer-secret';
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.INTERNAL_API_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const unauthorized = requireBearerSecret(request, process.env.INTERNAL_API_SECRET);
+  if (unauthorized) return unauthorized;
 
   const { agreementId, amount, description, due } = await request.json();
 

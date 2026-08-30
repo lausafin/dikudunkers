@@ -3,19 +3,14 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
+import { CATALOG_PRICES } from '@/lib/memberships';
+import { requireBearerSecret } from '@/lib/require-bearer-secret';
 
 export const dynamic = 'force-dynamic';
 
-const NEW_PRICES: Record<string, number> = {
-  Træning: 25000,
-  Kamphold: 45000,
-};
-
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const unauthorized = requireBearerSecret(request, process.env.CRON_SECRET);
+  if (unauthorized) return unauthorized;
 
   console.log(`Membership price update started: ${new Date().toISOString()}`);
 
@@ -28,7 +23,7 @@ export async function GET(request: Request) {
            (membership_type = 'Træning' AND price_in_ore IS DISTINCT FROM $1)
            OR (membership_type = 'Kamphold' AND price_in_ore IS DISTINCT FROM $2)
          )`,
-      [NEW_PRICES.Træning, NEW_PRICES.Kamphold]
+      [CATALOG_PRICES.Træning, CATALOG_PRICES.Kamphold]
     );
 
     const subscriptionsToUpdate = result.rows;
@@ -43,7 +38,7 @@ export async function GET(request: Request) {
     const updateResults = await Promise.all(
       subscriptionsToUpdate.map(async (sub) => {
         const { vipps_agreement_id, membership_type, price_in_ore } = sub;
-        const newPrice = NEW_PRICES[membership_type];
+        const newPrice = CATALOG_PRICES[membership_type as keyof typeof CATALOG_PRICES];
 
         if (!newPrice) {
           return {
