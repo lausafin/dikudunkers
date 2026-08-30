@@ -7,6 +7,28 @@ import { fetchAndSaveMemberData } from '@/lib/vipps-userinfo'; // <--- To sync d
 
 export const dynamic = 'force-dynamic';
 
+async function getWelcomeDetails(agreementId: string) {
+  const result = await pool.query(
+    `SELECT s.membership_type, m.name
+     FROM subscriptions s
+     LEFT JOIN members m ON m.id = s.member_id
+     WHERE s.vipps_agreement_id = $1`,
+    [agreementId]
+  );
+  const row = result.rows[0];
+  if (!row) return {};
+
+  const firstName =
+    typeof row.name === 'string' && row.name.trim()
+      ? row.name.trim().split(/\s+/)[0]
+      : undefined;
+
+  return {
+    firstName,
+    membershipType: row.membership_type || undefined,
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tempId = searchParams.get('temp_id');
@@ -30,7 +52,8 @@ export async function GET(request: Request) {
       const redis = await getRedisClient();
       const redisStatus = await redis.get(`status:${agreementId}`);
       if (redisStatus === 'ACTIVE') {
-        return NextResponse.json({ status: 'ACTIVE' });
+        const welcome = await getWelcomeDetails(agreementId);
+        return NextResponse.json({ status: 'ACTIVE', ...welcome });
       }
     } catch (_e) { /* Ignore Redis errors */ }
 
@@ -93,6 +116,11 @@ export async function GET(request: Request) {
       }
     }
     // =====================================================================
+
+    if (currentStatus === 'ACTIVE') {
+      const welcome = await getWelcomeDetails(agreementId);
+      return NextResponse.json({ status: 'ACTIVE', ...welcome });
+    }
 
     return NextResponse.json({ status: currentStatus });
 
