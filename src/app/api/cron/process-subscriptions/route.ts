@@ -4,6 +4,7 @@ import pool from '@/lib/db';
 import { getVippsAccessToken } from '@/lib/vipps';
 import { v4 as uuidv4 } from 'uuid';
 import { requireBearerSecret } from '@/lib/require-bearer-secret';
+import { BILLING_GRACE_DAYS } from '@/lib/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,22 +19,50 @@ export async function GET(request: Request) {
     const currentYear = today.getUTCFullYear();
     const februaryFirst = new Date(Date.UTC(currentYear, 1, 1));
     const septemberFirst = new Date(Date.UTC(currentYear, 8, 1));
+    const queryParams = [septemberFirst, februaryFirst, BILLING_GRACE_DAYS];
 
-    const query = `
-      SELECT vipps_agreement_id, price_in_ore 
+    const dueQuery = `
+      SELECT vipps_agreement_id, price_in_ore
       FROM subscriptions
       WHERE status = 'ACTIVE' AND (
-        (current_date >= $1 AND last_charged_at < $1)
+        (current_date >= $1 AND last_charged_at < $1 - ($3 * interval '1 day'))
         OR
-        (current_date >= $2 AND current_date < $1 AND last_charged_at < $2)
+        (current_date >= $2 AND current_date < $1 AND last_charged_at < $2 - ($3 * interval '1 day'))
       )
     `;
 
-    const result = await pool.query(query, [septemberFirst, februaryFirst]);
-    const subscriptionsToCharge = result.rows;
+    const skippedQuery = `
+      SELECT vipps_agreement_id, last_charged_at
+      FROM subscriptions
+      WHERE status = 'ACTIVE' AND (
+        (current_date >= $1 AND last_charged_at < $1 AND last_charged_at >= $1 - ($3 * interval '1 day'))
+        OR
+        (current_date >= $2 AND current_date < $1 AND last_charged_at < $2 AND last_charged_at >= $2 - ($3 * interval '1 day'))
+      )
+    `;
+
+    const [dueResult, skippedResult] = await Promise.all([
+      pool.query(dueQuery, queryParams),
+      pool.query(skippedQuery, queryParams),
+    ]);
+    const subscriptionsToCharge = dueResult.rows;
+    const skipped = skippedResult.rows.map((row) => ({
+      agreementId: row.vipps_agreement_id,
+      lastChargedAt: row.last_charged_at,
+    }));
+
+    if (skipped.length > 0) {
+      console.log(
+        `Skipped ${skipped.length} subscription(s) within the ${BILLING_GRACE_DAYS}-day billing grace window:`,
+        skipped,
+      );
+    }
 
     if (subscriptionsToCharge.length === 0) {
-      return NextResponse.json({ message: 'No subscriptions due for billing today.' });
+      return NextResponse.json({
+        message: 'No subscriptions due for billing today.',
+        skipped,
+      });
     }
 
     console.log(`Found ${subscriptionsToCharge.length} subscriptions to charge.`);
@@ -86,7 +115,7 @@ export async function GET(request: Request) {
     }); 
 
     const results = await Promise.all(chargePromises);
-    return NextResponse.json({ message: 'Billing process completed.', results });
+    return NextResponse.json({ message: 'Billing process completed.', results, skipped });
 
   } catch (error) {
     console.error('Cron job failed:', error);
