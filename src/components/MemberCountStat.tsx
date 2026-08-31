@@ -25,10 +25,19 @@ const rows: {
   },
 ];
 
+function gridColsClass(columnCount: number) {
+  if (columnCount === 1) return 'grid-cols-1';
+  if (columnCount === 2) return 'grid-cols-2';
+  return 'grid-cols-3';
+}
+
 export default function MemberCountStat({ counts }: { counts: MembershipCounts }) {
+  const hasAnyMembers = Object.values(counts).some((count) => count > 0);
+  const visible = hasAnyMembers ? rows.filter((row) => counts[row.type] > 0) : rows;
+
   return (
-    <div className="grid grid-cols-3 divide-x divide-gray-200/50 border-b border-gray-200/50 dark:divide-white/10 dark:border-white/10">
-      {rows.map((row) => (
+    <div className={`grid ${gridColsClass(visible.length)} divide-x divide-gray-200/50 border-b border-gray-200/50 dark:divide-white/10 dark:border-white/10`}>
+      {visible.map((row) => (
         <div key={row.type} className="px-3 py-4 text-center">
           <p className={`${outfit.className} text-3xl font-extrabold leading-none tracking-tight ${row.number}`}>
             {counts[row.type]}
