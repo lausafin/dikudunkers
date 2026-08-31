@@ -78,3 +78,18 @@ export function membershipBadgeClass(membershipType?: string): string {
   }
   return 'border-emerald-200/50 bg-emerald-100/80 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200';
 }
+
+export type MembershipCounts = Record<PublicMembershipType, number>;
+
+export function countActiveMemberships(
+  members: { membershipType: string }[],
+): MembershipCounts {
+  const counts: MembershipCounts = { Træning: 0, Kamphold: 0, Træner: 0 };
+  for (const member of members) {
+    const type = member.membershipType.toLowerCase();
+    if (type.includes('kamp')) counts.Kamphold += 1;
+    else if (type.includes('træner') || type.includes('traener')) counts.Træner += 1;
+    else counts.Træning += 1;
+  }
+  return counts;
+}

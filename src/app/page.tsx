@@ -1,12 +1,13 @@
 import BackgroundBlobs from '@/components/BackgroundBlobs';
 import CalendarEvents from '@/components/CalendarEvents';
 import CommunityLinks from '@/components/CommunityLinks';
+import MemberCountStat from '@/components/MemberCountStat';
 import NewSeasonBanner from '@/components/NewSeasonBanner';
 import NextTrainingStat from '@/components/NextTrainingStat';
 import SubscribeButton from '@/components/SubscribeButton';
 import { getUpcomingEvents } from '@/lib/calendar';
 import pool from '@/lib/db';
-import { MEMBERSHIP_DISPLAY, membershipBadgeClass } from '@/lib/memberships';
+import { MEMBERSHIP_DISPLAY, countActiveMemberships, membershipBadgeClass } from '@/lib/memberships';
 import { Outfit } from 'next/font/google';
 
 const outfit = Outfit({ subsets: ['latin'] });
@@ -75,6 +76,7 @@ export default async function HomePage() {
     getActiveMembers(),
     getUpcomingEvents(),
   ]);
+  const membershipCounts = countActiveMemberships(activeMembers);
 
   return (
     <div className="relative min-h-screen">
@@ -123,6 +125,7 @@ export default async function HomePage() {
             <h2 className="text-2xl font-bold mb-6 text-center dark:text-gray-100 drop-shadow-sm">Aktive Medlemmer</h2>
           {activeMembers.length > 0 ? (
             <div className="border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+              <MemberCountStat counts={membershipCounts} />
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left border-collapse">
                   <tbody className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
@@ -142,8 +145,9 @@ export default async function HomePage() {
               </div>
             </div>
           ) : (
-            <div className="text-center p-12 border border-white/50 dark:border-white/10 rounded-2xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)] text-gray-600 dark:text-gray-400">
-              <p className="text-lg font-medium">Der er ingen aktive medlemmer at vise endnu.</p>
+            <div className="overflow-hidden text-center border border-white/50 dark:border-white/10 rounded-2xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)] text-gray-600 dark:text-gray-400">
+              <MemberCountStat counts={membershipCounts} />
+              <p className="p-12 text-lg font-medium">Der er ingen aktive medlemmer at vise endnu.</p>
             </div>
           )}
           </div>
