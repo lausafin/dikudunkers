@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Outfit } from 'next/font/google';
 import NewSeasonBanner from '@/components/NewSeasonBanner';
+import { membershipBadgeClass } from '@/lib/memberships';
 
 const outfit = Outfit({ subsets: ['latin'] });
 
@@ -87,11 +88,7 @@ export default function WelcomeSuccess({ firstName, membershipType }: WelcomeDet
           {membershipType ? (
             <p className="mt-4">
               <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                  kamphold
-                    ? 'border-orange-200/50 bg-orange-100/80 text-orange-900 dark:border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-200'
-                    : 'border-emerald-200/50 bg-emerald-100/80 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200'
-                }`}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${membershipBadgeClass(membershipType)}`}
               >
                 {membershipType}
               </span>

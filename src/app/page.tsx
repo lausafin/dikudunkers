@@ -3,7 +3,7 @@ import CommunityLinks from '@/components/CommunityLinks';
 import NewSeasonBanner from '@/components/NewSeasonBanner';
 import SubscribeButton from '@/components/SubscribeButton';
 import pool from '@/lib/db';
-import { MEMBERSHIP_DISPLAY } from '@/lib/memberships';
+import { MEMBERSHIP_DISPLAY, membershipBadgeClass } from '@/lib/memberships';
 import { Outfit } from 'next/font/google';
 
 const outfit = Outfit({ subsets: ['latin'] });
@@ -131,11 +131,7 @@ export default async function HomePage() {
                       <tr key={i} className="hover:bg-white/40 dark:hover:bg-white/5 transition-colors">
                         <td className={`py-5 px-8 text-gray-900 dark:text-gray-100 font-medium ${outfit.className} text-lg tracking-wide`}>{member.name}</td>
                         <td className="py-5 px-8 text-gray-700 dark:text-gray-300">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                            member.membershipType.toLowerCase().includes('kamp') 
-                              ? 'bg-orange-100/80 text-orange-900 dark:bg-orange-500/20 dark:text-orange-200 border border-orange-200/50 dark:border-orange-500/30' 
-                              : 'bg-emerald-100/80 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200 border border-emerald-200/50 dark:border-emerald-500/30'
-                          }`}>
+                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${membershipBadgeClass(member.membershipType)}`}>
                             {member.membershipType}
                           </span>
                         </td>

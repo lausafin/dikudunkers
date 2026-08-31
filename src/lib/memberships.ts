@@ -1,6 +1,7 @@
 export const CATALOG_PRICES = {
   Træning: 25000,
   Kamphold: 45000,
+  Træner: 8000,
 } as const;
 
 export type PublicMembershipType = keyof typeof CATALOG_PRICES;
@@ -24,6 +25,11 @@ const PUBLIC_CATALOG: Record<PublicMembershipType, ResolvedMembership> = {
     priceInOre: CATALOG_PRICES.Kamphold,
     productName: 'Kamphold',
   },
+  Træner: {
+    membershipType: 'Træner',
+    priceInOre: CATALOG_PRICES.Træner,
+    productName: 'Træner',
+  },
 };
 
 /** Old Kamphold amount, only for Vipps test-API cron verification. */
@@ -44,6 +50,13 @@ export const MEMBERSHIP_DISPLAY = {
     productName: 'Kamphold',
     description: 'Deltagelse i DBBF-kampe samt fuld adgang til træning.',
   },
+  traener: {
+    type: 'Træner' as const,
+    priceInOre: CATALOG_PRICES.Træner,
+    displayName: `${CATALOG_PRICES.Træner / 100} DKK / halvår`,
+    productName: 'Træner',
+    description: 'Træneraftale med fri adgang til hal og kamphold. Symbolsk bidrag.',
+  },
 } as const;
 
 export const KAMPHOLD_LEGACY_TEST = {
@@ -60,7 +73,11 @@ export function isVippsTestEnv(): boolean {
 export function resolveMembershipForAgreement(
   requestedType: unknown,
 ): ResolvedMembership | null {
-  if (requestedType === 'Træning' || requestedType === 'Kamphold') {
+  if (
+    requestedType === 'Træning' ||
+    requestedType === 'Kamphold' ||
+    requestedType === 'Træner'
+  ) {
     return PUBLIC_CATALOG[requestedType];
   }
 
@@ -73,4 +90,15 @@ export function resolveMembershipForAgreement(
   }
 
   return null;
+}
+
+export function membershipBadgeClass(membershipType?: string): string {
+  const type = (membershipType ?? '').toLowerCase();
+  if (type.includes('kamp')) {
+    return 'border-orange-200/50 bg-orange-100/80 text-orange-900 dark:border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-200';
+  }
+  if (type.includes('træner') || type.includes('traener')) {
+    return 'border-amber-500/70 bg-amber-300 text-amber-950 dark:border-amber-400/60 dark:bg-amber-400/30 dark:text-amber-100';
+  }
+  return 'border-emerald-200/50 bg-emerald-100/80 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200';
 }

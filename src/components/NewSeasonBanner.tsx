@@ -2,7 +2,7 @@ import { Outfit } from 'next/font/google';
 
 const outfit = Outfit({ subsets: ['latin'] });
 
-type Accent = 'emerald' | 'orange';
+type Accent = 'emerald' | 'orange' | 'yellow';
 
 const accents: Record<
   Accent,
@@ -20,6 +20,11 @@ const accents: Record<
     gradient:
       'from-orange-600 via-orange-500 to-amber-500 dark:from-orange-500 dark:via-orange-600 dark:to-amber-600',
     glow: 'bg-amber-200/50',
+  },
+  yellow: {
+    gradient:
+      'from-yellow-500 via-amber-400 to-yellow-500 dark:from-yellow-500 dark:via-amber-500 dark:to-yellow-600',
+    glow: 'bg-yellow-200/50',
   },
 };
 

@@ -22,8 +22,9 @@ export async function GET(request: Request) {
          AND (
            (membership_type = 'Træning' AND price_in_ore IS DISTINCT FROM $1)
            OR (membership_type = 'Kamphold' AND price_in_ore IS DISTINCT FROM $2)
+           OR (membership_type = 'Træner' AND price_in_ore IS DISTINCT FROM $3)
          )`,
-      [CATALOG_PRICES.Træning, CATALOG_PRICES.Kamphold]
+      [CATALOG_PRICES.Træning, CATALOG_PRICES.Kamphold, CATALOG_PRICES.Træner]
     );
 
     const subscriptionsToUpdate = result.rows;
