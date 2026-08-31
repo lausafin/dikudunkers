@@ -2,9 +2,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import type { PublicMembershipType } from '@/lib/memberships';
 
 type MembershipDetails = {
-  type: 'Træning' | 'Kamphold' | 'KampholdLegacy' | 'Træner';
+  type: PublicMembershipType;
   priceInOre: number;
   displayName: string;
   productName: string;

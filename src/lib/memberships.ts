@@ -6,8 +6,6 @@ export const CATALOG_PRICES = {
 
 export type PublicMembershipType = keyof typeof CATALOG_PRICES;
 
-export type AgreementRequestType = PublicMembershipType | 'KampholdLegacy';
-
 export type ResolvedMembership = {
   membershipType: PublicMembershipType;
   priceInOre: number;
@@ -31,9 +29,6 @@ const PUBLIC_CATALOG: Record<PublicMembershipType, ResolvedMembership> = {
     productName: 'Træner',
   },
 };
-
-/** Old Kamphold amount, only for Vipps test-API cron verification. */
-export const KAMPHOLD_LEGACY_TEST_PRICE_ORE = 35000;
 
 export const MEMBERSHIP_DISPLAY = {
   traening: {
@@ -59,17 +54,6 @@ export const MEMBERSHIP_DISPLAY = {
   },
 } as const;
 
-export const KAMPHOLD_LEGACY_TEST = {
-  type: 'KampholdLegacy' as const,
-  priceInOre: KAMPHOLD_LEGACY_TEST_PRICE_ORE,
-  displayName: `${KAMPHOLD_LEGACY_TEST_PRICE_ORE / 100} DKK / halvår`,
-  productName: 'Kamphold',
-} as const;
-
-export function isVippsTestEnv(): boolean {
-  return (process.env.VIPPS_API_BASE_URL ?? '').includes('apitest');
-}
-
 export function resolveMembershipForAgreement(
   requestedType: unknown,
 ): ResolvedMembership | null {
@@ -79,14 +63,6 @@ export function resolveMembershipForAgreement(
     requestedType === 'Træner'
   ) {
     return PUBLIC_CATALOG[requestedType];
-  }
-
-  if (requestedType === 'KampholdLegacy' && isVippsTestEnv()) {
-    return {
-      membershipType: 'Kamphold',
-      priceInOre: KAMPHOLD_LEGACY_TEST_PRICE_ORE,
-      productName: 'Kamphold',
-    };
   }
 
   return null;
