@@ -24,10 +24,13 @@ body {
 
 @keyframes new-season-shimmer {
   0% {
-    transform: translateX(-130%) skewX(-18deg);
+    transform: translateX(-180%) skewX(-18deg);
+  }
+  58% {
+    transform: translateX(360%) skewX(-18deg);
   }
   100% {
-    transform: translateX(240%) skewX(-18deg);
+    transform: translateX(360%) skewX(-18deg);
   }
 }
 
@@ -51,7 +54,7 @@ body {
     rgb(255 255 255 / 0.38),
     transparent
   );
-  animation: new-season-shimmer 3.6s ease-in-out infinite;
+  animation: new-season-shimmer 4.8s linear infinite;
 }
 
 @keyframes welcome-card-in {
