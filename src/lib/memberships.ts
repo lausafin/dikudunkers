@@ -1,7 +1,7 @@
 export const CATALOG_PRICES = {
   Træning: 25000,
   Kamphold: 45000,
-  Træner: 8000,
+  Træner: 100,
 } as const;
 
 export type PublicMembershipType = keyof typeof CATALOG_PRICES;
@@ -50,7 +50,7 @@ export const MEMBERSHIP_DISPLAY = {
     priceInOre: CATALOG_PRICES.Træner,
     displayName: `${CATALOG_PRICES.Træner / 100} DKK / halvår`,
     productName: 'Træner',
-    description: 'Træneraftale med fri adgang til hal og kamphold. Symbolsk bidrag.',
+    description: 'Træneraftale med fri adgang til hal og kamphold.',
   },
 } as const;
 
