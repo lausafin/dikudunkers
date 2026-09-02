@@ -8,6 +8,7 @@ import SubscribeButton from '@/components/SubscribeButton';
 import { getUpcomingEvents } from '@/lib/calendar';
 import pool from '@/lib/db';
 import { MEMBERSHIP_DISPLAY, countActiveMemberships, membershipBadgeClass } from '@/lib/memberships';
+import Image from 'next/image';
 import { Outfit } from 'next/font/google';
 
 const outfit = Outfit({ subsets: ['latin'] });
@@ -83,8 +84,19 @@ export default async function HomePage() {
       <BackgroundBlobs />
 
       <div className="container mx-auto relative z-10 py-12">
-        <h1 className="text-4xl font-bold mb-4 text-center dark:text-gray-100 drop-shadow-sm">DIKU Dunkers</h1>
-        <p className="mb-12 text-center text-lg text-gray-700 dark:text-gray-300">Vælg dit medlemskab for at komme i gang.</p>
+        <header className="mb-12 flex flex-col items-center text-center">
+          <Image
+            src="/logo.png"
+            alt=""
+            width={176}
+            height={157}
+            priority
+            sizes="(min-width: 640px) 176px, 144px"
+            className="mb-3 h-auto w-36 select-none drop-shadow-sm sm:w-44"
+          />
+          <h1 className="text-4xl font-bold dark:text-gray-100 drop-shadow-sm">DIKU Dunkers</h1>
+          <p className="mt-4 text-lg text-gray-700 dark:text-gray-300">Vælg dit medlemskab for at komme i gang.</p>
+        </header>
         
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-20">
           {/* Træning Membership Card */}
