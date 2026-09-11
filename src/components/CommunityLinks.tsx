@@ -24,13 +24,13 @@ const communities = [
   {
     href: 'https://www.facebook.com/groups/344817755279579',
     title: 'Facebook-gruppe',
-    description: 'Nyheder, billeder og arrangementer',
+    description: 'Begivenheder',
     Icon: FacebookMark,
   },
   {
     href: 'https://m.me/cm/AbYENzeA-zffYS7N/',
     title: 'Messenger-gruppe',
-    description: 'Info om ugentlig træning',
+    description: 'Primær kommunikation',
     Icon: MessengerMark,
   },
 ] as const;
