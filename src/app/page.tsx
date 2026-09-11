@@ -1,9 +1,13 @@
 import BackgroundBlobs from '@/components/BackgroundBlobs';
+import BoardSection from '@/components/BoardSection';
 import CalendarEvents from '@/components/CalendarEvents';
+import CoachSection from '@/components/CoachSection';
 import CommunityLinks from '@/components/CommunityLinks';
+import FaqSection from '@/components/FaqSection';
 import MemberCountStat from '@/components/MemberCountStat';
 import NewSeasonBanner from '@/components/NewSeasonBanner';
 import NextTrainingStat from '@/components/NextTrainingStat';
+import StorySection from '@/components/StorySection';
 import SubscribeButton from '@/components/SubscribeButton';
 import { getUpcomingEvents } from '@/lib/calendar';
 import pool from '@/lib/db';
@@ -164,6 +168,11 @@ export default async function HomePage() {
           )}
           </div>
         </div>
+
+        <FaqSection />
+        <CoachSection />
+        <StorySection />
+        <BoardSection />
       </div>
     </div>
   );
