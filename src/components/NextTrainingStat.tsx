@@ -16,8 +16,8 @@ export default function NextTrainingStat({ training }: { training: NextTraining 
 
   return (
     <div className="flex items-center gap-5 border-b border-gray-200/50 px-6 py-4 dark:border-white/10">
-      <div className="min-w-[4.5rem] text-center">
-        <p className={`${outfit.className} text-3xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white`}>
+      <div className="min-w-[4.5rem] shrink-0 text-center">
+        <p className={`${outfit.className} whitespace-nowrap text-3xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white`}>
           {days.value}
         </p>
         {days.unit ? (
