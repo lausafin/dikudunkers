@@ -91,10 +91,10 @@ function PersonRow({ person }: { person: Person }) {
 
 export default function CoachSection() {
   return (
-    <section className="mx-auto mt-20 w-full max-w-4xl" aria-labelledby="team-heading">
+    <section className="mx-auto mt-36 w-full max-w-4xl" aria-labelledby="team-heading">
       <h2
         id="team-heading"
-        className="mb-10 text-center text-2xl font-bold drop-shadow-sm dark:text-gray-100"
+        className="mb-6 text-center text-2xl font-bold drop-shadow-sm dark:text-gray-100"
       >
         Mød vores trænere
       </h2>

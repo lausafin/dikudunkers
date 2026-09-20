@@ -9,7 +9,7 @@ const storyFont = Source_Serif_4({
 export default function StorySection() {
   return (
     <section
-      className="mx-auto mt-20 w-full max-w-sm px-2 text-center"
+      className="mx-auto mt-28 w-full max-w-sm px-2 text-center"
       aria-labelledby="story-heading"
     >
       <h2

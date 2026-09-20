@@ -37,7 +37,7 @@ const communities = [
 
 export default function CommunityLinks() {
   return (
-    <section className="mx-auto mb-16 w-full max-w-xl" aria-labelledby="community-heading">
+    <section className="mx-auto mb-20 w-full max-w-xl" aria-labelledby="community-heading">
       <h2
         id="community-heading"
         className="mb-4 text-center text-sm font-medium tracking-wide text-gray-500 dark:text-gray-400"

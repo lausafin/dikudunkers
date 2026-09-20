@@ -22,7 +22,7 @@ const faqs = [
 
 export default function FaqSection() {
   return (
-    <section className="mx-auto mt-20 w-full max-w-3xl" aria-labelledby="faq-heading">
+    <section className="mx-auto mt-28 w-full max-w-3xl" aria-labelledby="faq-heading">
       <h2
         id="faq-heading"
         className="mb-6 text-center text-2xl font-bold drop-shadow-sm dark:text-gray-100"

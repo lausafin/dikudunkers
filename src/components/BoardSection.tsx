@@ -14,7 +14,7 @@ const members = [
 export default function BoardSection() {
   return (
     <section
-      className="mx-auto mt-20 mb-4 w-full max-w-5xl text-center"
+      className="mx-auto mt-28 mb-4 w-full max-w-5xl text-center"
       aria-labelledby="board-heading"
     >
       <h2
