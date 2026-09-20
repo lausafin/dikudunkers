@@ -4,6 +4,7 @@ import CalendarEvents from '@/components/CalendarEvents';
 import CoachSection from '@/components/CoachSection';
 import CommunityLinks from '@/components/CommunityLinks';
 import FaqSection from '@/components/FaqSection';
+import JerseySection from '@/components/JerseySection';
 import MemberCountStat from '@/components/MemberCountStat';
 import NewSeasonBanner from '@/components/NewSeasonBanner';
 import NextTrainingStat from '@/components/NextTrainingStat';
@@ -102,7 +103,7 @@ export default async function HomePage() {
           <p className="mt-4 text-lg text-gray-700 dark:text-gray-300">Vælg dit medlemskab for at komme i gang.</p>
         </header>
         
-        <div className="flex flex-col md:flex-row justify-center gap-8 mb-20">
+        <div className="flex flex-col md:flex-row justify-center gap-8 mb-24">
           {/* Træning Membership Card */}
           <div className="border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden max-w-sm w-full flex flex-col bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
             <NewSeasonBanner accent="emerald" />
@@ -170,6 +171,7 @@ export default async function HomePage() {
         </div>
 
         <FaqSection />
+        <JerseySection />
         <CoachSection />
         <StorySection />
         <BoardSection />
